@@ -69,7 +69,7 @@
  * $WIZ$ type = "int"
  * $WIZ$ min = 2
  */
-#define CONFIG_AFSK_RX_BUFLEN 64
+#define CONFIG_AFSK_RX_BUFLEN 32
 
 /**
  * AFSK transimtter buffer length.
@@ -77,7 +77,7 @@
  * $WIZ$ type = "int"
  * $WIZ$ min = 2
  */
-#define CONFIG_AFSK_TX_BUFLEN 64
+#define CONFIG_AFSK_TX_BUFLEN 32
 
 /**
  * AFSK DAC sample rate for modem outout.

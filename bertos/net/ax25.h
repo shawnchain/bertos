@@ -38,7 +38,7 @@
  *
  * $WIZ$ module_name = "ax25"
  * $WIZ$ module_configuration = "bertos/cfg/cfg_ax25.h"
- * $WIZ$ module_depends = "kfile", "crc-ccitt"
+ * $WIZ$ module_depends = "kfile"
  */
 
 
@@ -74,14 +74,10 @@ typedef void (*ax25_callback_t)(struct AX25Msg *msg);
  */
 typedef struct AX25Ctx
 {
-	uint8_t buf[CONFIG_AX25_FRAME_BUF_LEN]; ///< buffer for received chars
-	KFile *ch;        ///< KFile used to access the physical medium
-	size_t frm_len;   ///< received frame length.
-	uint16_t crc_in;  ///< CRC for current received frame
-	uint16_t crc_out; ///< CRC of current sent frame
-	ax25_callback_t hook; ///< Hook function to be called when a message is received
-	bool sync;   ///< True if we have received a HDLC flag.
-	bool escape; ///< True when we have to escape the following char.
+	uint8_t buf[CONFIG_AX25_FRAME_BUF_LEN];	///< buffer for received chars
+	KFile *ch;						  ///< KFile used to access the physical medium
+	size_t frm_len;				  ///< received frame length.
+	ax25_callback_t hook;		  ///< Hook function to be called when a message is received
 } AX25Ctx;
 
 
@@ -118,34 +114,25 @@ STATIC_ASSERT(AX25_MAX_RPT <= 8);
  */
 typedef struct AX25Msg
 {
-	AX25Call src;  ///< Source adress
-	AX25Call dst;  ///< Destination address
-	#if CONFIG_AX25_RPT_LST
-	AX25Call rpt_lst[AX25_MAX_RPT]; ///< List of repeaters
-	uint8_t rpt_cnt; ///< Number of repeaters in this message
-	uint8_t rpt_flags; ///< Has-been-repeated flags for each repeater (bit-mapped)
-	#define AX25_REPEATED(msg, idx) ((msg)->rpt_flags & BV(idx))
-	#endif
-	uint16_t ctrl; ///< AX25 control field
-	uint8_t pid;   ///< AX25 PID field
-	const uint8_t *info; ///< Pointer to the info field (payload) of the message
-	size_t len;    ///< Payload length
+	AX25Call src;					  ///< Source adress
+	AX25Call dst;					  ///< Destination address
+#if CONFIG_AX25_RPT_LST
+	AX25Call rpt_lst[AX25_MAX_RPT];	///< List of repeaters
+	uint8_t rpt_cnt;				  ///< Number of repeaters in this message
+	uint8_t rpt_flags;			  ///< Has-been-repeated flags for each repeater (bit-mapped)
+#define AX25_REPEATED(msg, idx) ((msg)->rpt_flags & BV(idx))
+#endif
+	uint16_t ctrl;					  ///< AX25 control field
+	uint8_t pid;					  ///< AX25 PID field
+	const uint8_t *info;			  ///< Pointer to the info field (payload) of the message
+	size_t len;						  ///< Payload length
+	size_t tlen;					  ///< Total length
 } AX25Msg;
 
 
 #define AX25_CTRL_UI      0x03
 #define AX25_PID_NOLAYER3 0xF0
 
-/**
- * \name HDLC flags.
- * These should be moved in
- * a separated HDLC related file one day...
- * \{
- */
-#define HDLC_FLAG  0x7E
-#define HDLC_RESET 0x7F
-#define AX25_ESC   0x1B
-/* \} */
 
 
 /**
