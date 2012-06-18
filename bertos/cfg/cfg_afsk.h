@@ -64,7 +64,7 @@
 
 
 /**
- * AFSK receiver buffer length.
+ * AFSK receiver buffer fifo length.
  *
  * $WIZ$ type = "int"
  * $WIZ$ min = 2
@@ -72,7 +72,7 @@
 #define CONFIG_AFSK_RX_BUFLEN 32
 
 /**
- * AFSK transimtter buffer length.
+ * AFSK transimtter buffer fifo length.
  *
  * $WIZ$ type = "int"
  * $WIZ$ min = 2
@@ -102,12 +102,19 @@
 #define CONFIG_AFSK_PREAMBLE_LEN 300UL
 
 
-
 /**
  * AFSK Trailer length in [ms], before stopping transmissions.
  * $WIZ$ type = "int"
  * $WIZ$ min = 1
  */
 #define CONFIG_AFSK_TRAILER_LEN 50UL
+
+/**
+ * Use PWM TX rather than weighted resistor DAC
+ *
+ * $WIZ$ type = "boolean"
+ */
+#define CONFIG_AFSK_PWM_TX   1
+
 
 #endif /* CFG_AFSK_H */
