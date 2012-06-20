@@ -100,7 +100,7 @@ void hw_afsk_dacInit(int ch, struct Afsk *_ctx);
 		(void)ch, (void)ctx;\
 			TCCR2A = BV(COM2A1) | BV(COM2A0) | BV(WGM21) | BV(WGM20);\
 			TCCR2B = BV(WGM22) | BV(CS20);\
-			DDRB |= BV(1) | BV(3);\
+			DDRB |= (BV(1) | BV(3));\
 		} while (0)
 #else
 #define AFSK_DAC_INIT(ch, ctx)   do { (void)ch, (void)ctx; DDRD |= 0xF0; DDRB |= BV(1); } while (0)
@@ -111,18 +111,18 @@ void hw_afsk_dacInit(int ch, struct Afsk *_ctx);
  * \param ch DAC channel.
  */
 #if CONFIG_AFSK_PWM_TX == 1
-#define AFSK_DAC_IRQ_START(ch)   do { (void)ch; extern bool hw_afsk_dac_isr; PORTB |= BV(1) | BV(3); hw_afsk_dac_isr = true; } while (0)
-#else
 #define AFSK_DAC_IRQ_START(ch)   do { (void)ch; extern bool hw_afsk_dac_isr; PORTB |= BV(1); hw_afsk_dac_isr = true; } while (0)
+#else
+#define AFSK_DAC_IRQ_START(ch)   do { (void)ch; extern bool hw_afsk_dac_isr; PORTB |= BV(3); hw_afsk_dac_isr = true; } while (0)
 #endif
 /**
  * Stop DAC convertions on channel \a ch.
  * \param ch DAC channel.
  */
 #if CONFIG_AFSK_PWM_TX == 1
-#define AFSK_DAC_IRQ_STOP(ch)    do { (void)ch; extern bool hw_afsk_dac_isr; PORTB &= ~(BV(1) | BV(3)); hw_afsk_dac_isr = false; } while (0)
-#else
 #define AFSK_DAC_IRQ_STOP(ch)    do { (void)ch; extern bool hw_afsk_dac_isr; PORTB &= ~BV(1); hw_afsk_dac_isr = false; } while (0)
+#else
+#define AFSK_DAC_IRQ_STOP(ch)    do { (void)ch; extern bool hw_afsk_dac_isr; PORTB &= ~BV(3); hw_afsk_dac_isr = false; } while (0)
 #endif
 
 #endif /* HW_AFSK_H */
