@@ -52,6 +52,7 @@
 
 /**
  * \name LCD I/O pins/ports
+ * In this case the data lines are put onto bits 4-7 of port B
  * @{
  */
 #define LCD_RW    PB0
@@ -146,13 +147,13 @@
 /** Delay for write (Enable pulse width, 220ns) */
 #define LCD_DELAY_WRITE \
 	do { \
-			timer_udelay(160); \
+			timer_udelay(2); \
 	} while (0)
 
 /** Delay for read (Data ouput delay time, 120ns) */
 #define LCD_DELAY_READ \
 	do { \
-			timer_udelay(160); \
+			timer_udelay(1); \
 	} while (0)
 
 
