@@ -103,7 +103,7 @@ void hw_afsk_dacInit(int ch, struct Afsk *_ctx);
 			DDRB |= (BV(1) | BV(3));\
 		} while (0)
 #else
-#define AFSK_DAC_INIT(ch, ctx)   do { (void)ch, (void)ctx; DDRD |= 0xF0; DDRB |= BV(1); } while (0)
+#define AFSK_DAC_INIT(ch, ctx)   do { (void)ch, (void)ctx; DDRD |= 0xF0; DDRB |= BV(3); } while (0)
 #endif
 
 /**
