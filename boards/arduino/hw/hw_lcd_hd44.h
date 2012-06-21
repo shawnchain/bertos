@@ -56,8 +56,8 @@
  * @{
  */
 #define LCD_RW    PB0
-#define LCD_RS    PD2
-#define LCD_E     PD3
+#define LCD_RS    PB1
+#define LCD_E     PD2
 #define LCD_DB0   /* Implement me! */
 #define LCD_DB1   /* Implement me! */
 #define LCD_DB2   /* Implement me! */
@@ -71,10 +71,10 @@
 #define LCD_PORT_DDR    DDRD
 #define LCD_RW_PORT     PORTB
 #define LCD_RW_PORT_DDR DDRB
-#define LCD_RS_PORT     LCD_PORT
-#define LCD_RS_PORT_DDR LCD_PORT_DDR
-#define LCD_E_PORT      LCD_PORT
-#define LCD_E_PORT_DDR  LCD_PORT_DDR
+#define LCD_RS_PORT     PORTB
+#define LCD_RS_PORT_DDR DDRB
+#define LCD_E_PORT      PORTD
+#define LCD_E_PORT_DDR  DDRD
 /*@}*/
 
 /**
