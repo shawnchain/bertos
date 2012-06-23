@@ -103,6 +103,7 @@ void lcd_moveTo(uint8_t addr);
 void lcd_setReg(uint8_t val);
 void lcd_putc(uint8_t a, uint8_t c);
 void lcd_remapChar(const char *glyph, char code);
+void lcd_display(bool display, bool cursor, bool blink);
 void lcd_hw_init(void);
 void lcd_hw_test(void);
 

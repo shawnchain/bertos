@@ -112,19 +112,15 @@
 
 	#define LCD_WRITE_L(x) \
 	do { \
-			uint8_t dataBits = LCD_PORT & 0x0F;
-			LCD_PORT = dataBits |((x << LCD_SHIFT)&0xF0);
+			uint8_t dataBits = LCD_PORT & 0x0F; \
+			LCD_PORT = dataBits |((x << LCD_SHIFT)&0xF0); \
 		} while (0)
 
-	INLINE uint8_t LCD_READ_H (void)
-	{
-		return = LCD_PORT_IN & 0xf0;
-	}
+	#define LCD_READ_H \
+		(LCD_PORT_IN & 0xf0)
 
-	INLINE uint8_t LCD_READ_L (void)
-	{
-		return = (LCD_PORT_IN >> LCD_SHIFT) & 0x0f;
-	}
+	#define LCD_READ_L \
+		((LCD_PORT_IN >> LCD_SHIFT) & 0x0f)
 
 #else
 	#define LCD_WRITE(x)    ((void)x)/* Implement me! */

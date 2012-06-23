@@ -378,6 +378,15 @@ void lcd_remapChar(const char *glyph, char code)
 	lcd_setReg(lcd_address(lcd_current_addr));
 }
 
+void lcd_display(bool display, bool cursor, bool blink )
+{
+   uint8_t value = LCD_CMD_DISPLAY_OFF;
+   value |= display ? 0x04 : 0;
+   value |= cursor ? 0x02 : 0;
+   value |= blink ? 0x01 : 0;
+	lcd_regWrite(value);
+	timer_delay(2);
+}
 
 #if 0 /* unused */
 void lcd_remapfont(void)
