@@ -55,6 +55,8 @@
 #define TERM_DOWN    0x0a     /**< Cursor down */
 #define TERM_LEFT    0x08     /**< Cursor left */
 #define TERM_RIGHT   0x18     /**< Cursor right */
+#define TERM_CR      0x0d     /**< Carriage return */
+#define TERM_LF      0x0a     /**< Line feed (scrolling version of cursor down!) */
 
 #define TERM_STATE_NORMAL   0x00    /**< state that indicates we're passing data straight through */
 #define TERM_STATE_ROW      0x01    /**< state that indicates we're waiting for the row address */

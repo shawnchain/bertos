@@ -455,6 +455,12 @@ static void lcd_putchar(uint8_t c, struct Lcd *fds)
 				if (fds->addr % (CONFIG_LCD_ROWS))
 					fds->addr = 0;
 			break;
+		case TERM_CR:    /**< Carriage return */
+			fds->addr = 0;
+			break;
+		case TERM_LF:    /**< Line feed */
+			fds->addr = 0;
+			break;
 		default:
 			lcd_putc(fds->addr, c);
 		}
