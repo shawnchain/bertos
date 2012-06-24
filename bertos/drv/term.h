@@ -45,9 +45,6 @@
  *
  */
 
-#include "hw/thermo_map.h"
-#include "hw/hw_thermo.h"
-
 
 #define TERM_CPC     0x16     /**< Cursor position prefix - followed by row + column */
 #define TERM_ROW     0x20     /**< cursor position row offset */
