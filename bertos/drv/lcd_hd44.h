@@ -105,6 +105,7 @@ void lcd_putc(uint8_t a, uint8_t c);
 void lcd_remapChar(const char *glyph, char code);
 void lcd_command(uint8_t value);
 void lcd_display(bool display, bool cursor, bool blink);
+void lcd_getdims(uint8_t * rows, uint8_t * cols);
 void lcd_hw_init(void);
 void lcd_hw_test(void);
 

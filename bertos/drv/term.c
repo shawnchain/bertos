@@ -76,36 +76,56 @@ static void term_putchar(uint8_t c, struct Term *fds)
 			fds->addr = 0;
 			break;
 		case TERM_UP:      /**< Cursor up  - no wrap */
-			if (fds->addr > CONFIG_LCD_COLS)
-				fds->addr -= CONFIG_LCD_COLS;
+			if (fds->addr > fds->cols)
+				fds->addr -= fds->cols;
 			break;
-		case TERM_DOWN:    /**< Cursor down - also Line feed. No wrap */
-			if (fds->addr > (CONFIG_LCD_COLS * (CONFIG_LCD_ROWS - 1)))
-				fds->addr += CONFIG_LCD_COLS;
+		case TERM_DOWN:    /**< Cursor down - also Line feed. No scroll */
+			if (fds->addr < (fds->cols * (fds->rows - 1)))
+				fds->addr += fds->cols;
 			break;
-		case TERM_LEFT:    /**< Cursor left - no wrap */
-			if (!(fds->addr % CONFIG_LCD_COLS))
-				fds->addr -= 1;
+		case TERM_LEFT:    /**< Cursor left - wrap top left to bottom right  */
+			if (--fds->addr < 0)
+				fds->addr += fds->cols * fds->rows;
 			break;
 		case TERM_RIGHT:   /**< Cursor right */
-			if (!(++fds->addr % CONFIG_LCD_COLS))
-				fds->addr -= 1;               // if goes onto next line then move back
+			if (++fds->addr > (fds->cols * fds->rows))
+				fds->addr = 0;               // wrap bottom right to top left
 			break;
 		case TERM_CR:    /**< Carriage return */
-			fds->addr -= fds->addr % CONFIG_LCD_COLS;
+			fds->addr -= fds->addr % fds->cols;
 			break;
+		case TERM_LF:    /**< Line feed. Does scroll if enabled else does cursor down */
+#if CONFIG_TERM_SCROLL == 1
+			if ((fds->addr / fds->cols) == fds->rows)         // see if on last row
+			{
+				uint8_t i;
+				lcd_command(LCD_CMD_CLEAR);
+				timer_delay(2);
+				for (i = 0; i < fds->cols * (fds->rows - 1); i++)
+				{
+					fds->scrollbuff[i] = fds->scrollbuff[i + fds->cols];
+					lcd_putc(i, fds->scrollbuff[i]);
+				}
+			}
+			else
+#endif
+			{
+				if (fds->addr < (fds->cols * (fds->rows - 1)))
+					fds->addr += fds->cols;
+			}
+			break;
+
 		default:
 			lcd_putc(fds->addr, c);
 			fds->addr += 1;
 		}
 		break;
 	case TERM_STATE_ROW:  /**< state that indicates we're waiting for the row address */
-		fds->row = c - TERM_ROW;         /**< cursor position row offset */
+		fds->tmp = c - TERM_ROW;         /**< cursor position row offset */
 		fds->state = TERM_STATE_COL;     // wait for row value
 		break;
 	case TERM_STATE_COL:  /**< state that indicates we're waiting for the column address */
-		fds->col = c - TERM_COL;         /**< cursor position column offset */
-		fds->addr = (fds->row * CONFIG_LCD_COLS) + fds->col;
+		fds->addr = (fds->tmp * fds->cols) + (c - TERM_COL);
 		fds->state = TERM_STATE_NORMAL;  // return to normal processing - cursor address complete
 		break;
 	}
@@ -137,9 +157,10 @@ void term_init(struct Term *fds)
 	memset(fds, 0, sizeof(*fds));
 
 	DB(fds->fd._type = KFT_TERM);
-	fds->fd.write = term_write;       // leave all but the write function as default
-	fds->state = TERM_STATE_NORMAL;   // start at known point
-	term_putchar(TERM_CLR, fds);      // clear screen, init address pointer
+	fds->fd.write = term_write;            // leave all but the write function as default
+	lcd_getdims(&fds->rows, &fds->cols);   // get dimensions of display
+	fds->state = TERM_STATE_NORMAL;        // start at known point
+	term_putchar(TERM_CLR, fds);           // clear screen, init address pointer
 
 }
 

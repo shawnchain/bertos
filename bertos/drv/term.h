@@ -45,8 +45,14 @@
 
  * $WIZ$ module_name = "term"
  * $WIZ$ module_depends = "lcd_hd44"
+ * $WIZ$ module_configuration = "bertos/cfg/cfg_term.h"
  *
  */
+
+#include "lcd_hd44.h"
+
+#include "cfg/cfg_term.h"
+#include "cfg/cfg_lcd_hd44.h"
 
 #include "cfg/compiler.h"
 #include "io/kfile.h"
@@ -58,7 +64,7 @@
 #define TERM_CLR     0x1f     /**< Clear screen */
 #define TERM_HOME    0x1d     /**< Home */
 #define TERM_UP      0x0b     /**< Cursor up */
-#define TERM_DOWN    0x0a     /**< Cursor down */
+#define TERM_DOWN    0x07     /**< Cursor down */
 #define TERM_LEFT    0x08     /**< Cursor left */
 #define TERM_RIGHT   0x18     /**< Cursor right */
 #define TERM_CR      0x0d     /**< Carriage return */
@@ -78,9 +84,13 @@ typedef struct Term
 	/** Terminal has a KFile struct implementation **/
 	KFile fd;
 	uint8_t state;
-	uint8_t row;
-	uint8_t col;
+	uint8_t tmp;
+	uint8_t rows;
+	uint8_t cols;
 	int16_t addr;
+#if CONFIG_TERM_SCROLL == 1
+	uint8_t scrollbuff[CONFIG_LCD_COLS * CONFIG_LCD_ROWS];
+#endif
 } Term;
 
 

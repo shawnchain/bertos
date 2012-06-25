@@ -393,6 +393,12 @@ void lcd_display(bool display, bool cursor, bool blink )
 	timer_delay(2);
 }
 
+void lcd_getdims(uint8_t * rows, uint8_t * cols)
+{
+	*rows = CONFIG_LCD_ROWS;
+	*cols = CONFIG_LCD_COLS;
+}
+
 #if 0 /* unused */
 void lcd_remapfont(void)
 {
