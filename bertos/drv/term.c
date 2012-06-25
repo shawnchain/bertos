@@ -94,7 +94,7 @@ static void term_putchar(uint8_t c, struct Term *fds)
 		case TERM_CR:    /**< Carriage return */
 			fds->addr -= fds->addr % fds->cols;
 			break;
-		case TERM_LF:    /**< Line feed. Does scroll if enabled else does cursor down */
+		case TERM_LF:    /**< Line feed. Does scroll on last line if enabled else does cursor down */
 #if CONFIG_TERM_SCROLL == 1
 			if ((fds->addr / fds->cols) == fds->rows)         // see if on last row
 			{
