@@ -42,8 +42,14 @@
  *     direct cursor addressing on an LCD panel
  *
  * \author Robin Gilks <g8ecj@gilks.org>
+
+ * $WIZ$ module_name = "term"
+ * $WIZ$ module_depends = "lcd_hd44"
  *
  */
+
+#include "cfg/compiler.h"
+#include "io/kfile.h"
 
 
 #define TERM_CPC     0x16     /**< Cursor position prefix - followed by row + column */
@@ -61,3 +67,40 @@
 #define TERM_STATE_NORMAL   0x00    /**< state that indicates we're passing data straight through */
 #define TERM_STATE_ROW      0x01    /**< state that indicates we're waiting for the row address */
 #define TERM_STATE_COL      0x02    /**< state that indicates we're waiting for the column address */
+
+
+
+
+
+/** Terminal handle structure */
+typedef struct Term
+{
+	/** Terminal has a KFile struct implementation **/
+	KFile fd;
+	uint8_t state;
+	uint8_t row;
+	uint8_t col;
+	int16_t addr;
+} Term;
+
+
+
+
+
+
+/**
+ * ID for serial.
+ */
+#define KFT_TERM MAKE_ID('T', 'E', 'R', 'M')
+
+
+INLINE Term * TERM_CAST(KFile *fd)
+{
+	ASSERT(fd->_type == KFT_TERM);
+	return (Term *)fd;
+}
+
+
+
+
+void term_init(struct Term *fds);

@@ -381,6 +381,11 @@ void lcd_remapChar(const char *glyph, char code)
 	lcd_setReg(lcd_address(lcd_current_addr));
 }
 
+void lcd_command(uint8_t value)
+{
+	lcd_regWrite(value);
+}
+
 void lcd_display(bool display, bool cursor, bool blink )
 {
 	uint8_t value = LCD_CMD_DISPLAY_OFF;
@@ -412,95 +417,9 @@ void lcd_remapfont(void)
 
 
 
-/**
- * \brief Write a character to LCD display, interpreting control codes in the data stream.
- * Uses the control codes defined by the terminal emulation driver.
- *
- */
-static void lcd_putchar(uint8_t c, struct Lcd *fds)
-{
-	switch (fds->state)
-	{
-	case TERM_STATE_NORMAL: /**< state that indicates we're passing data straight through */
-		switch (c)
-		{
-		case TERM_CPC:     /**< Cursor position prefix - followed by row + column */
-			fds->state = TERM_STATE_ROW;      // wait for row value
-			break;
-		case TERM_CLR:     /**< Clear screen */
-			fds->addr = 0;
-			lcd_regWrite(LCD_CMD_CLEAR);
-			timer_delay(2);
-			break;
-		case TERM_HOME:    /**< Home */
-			fds->addr = 0;
-			break;
-		case TERM_UP:      /**< Cursor up */
-			fds->addr -= CONFIG_LCD_COLS;
-			if (fds->addr < 0)
-				fds->addr += ( CONFIG_LCD_COLS *CONFIG_LCD_ROWS);
-			break;
-		case TERM_DOWN:    /**< Cursor down */
-			fds->addr += CONFIG_LCD_COLS % (CONFIG_LCD_COLS * CONFIG_LCD_ROWS);
-			break;
-		case TERM_LEFT:    /**< Cursor left */
-			fds->addr -= 1;
-			if (!(fds->addr % CONFIG_LCD_COLS))
-			if (!(++fds->addr % CONFIG_LCD_COLS))
-				fds->addr = CONFIG_LCD_COLS * CONFIG_LCD_ROWS;
-			break;
-		case TERM_RIGHT:   /**< Cursor right */
-			fds->addr += 1;
-			if (!(fds->addr % CONFIG_LCD_COLS))             // see if dropped off the end of the line
-				if (fds->addr % (CONFIG_LCD_ROWS))
-					fds->addr = 0;
-			break;
-		case TERM_CR:    /**< Carriage return */
-			fds->addr = 0;
-			break;
-		case TERM_LF:    /**< Line feed */
-			fds->addr = 0;
-			break;
-		default:
-			lcd_putc(fds->addr, c);
-		}
-		break;
-	case TERM_STATE_ROW:  /**< state that indicates we're waiting for the row address */
-		fds->row = c - TERM_ROW;         /**< cursor position row offset */
-		fds->state = TERM_STATE_COL;     // wait for row value
-		break;
-	case TERM_STATE_COL:  /**< state that indicates we're waiting for the column address */
-		fds->col = c - TERM_COL;         /**< cursor position column offset */
-		fds->addr = (fds->row * CONFIG_LCD_COLS) + fds->col;
-		fds->state = TERM_STATE_NORMAL;  // return to normal processing - cursor address complete
-		break;
-	}
-}
 
 
-
-/**
- * \brief Write a buffer to LCD display.
- *
- * \return 0 if OK, EOF in case of error.
- *
- */
-static size_t lcd_write(struct KFile *fd, const void *_buf, size_t size)
-{
-	Lcd *fds = LCD_CAST(fd);
-	const char *buf = (const char *)_buf;
-
-	while (size--)
-	{
-		lcd_putchar(*buf++, fds);
-	}
-	return 0;
-}
-
-
-
-
-void lcd_hw_init(struct Lcd *fds)
+void lcd_hw_init(void)
 {
 	lcd_hd44_hw_bus_init();
 
@@ -527,10 +446,6 @@ void lcd_hw_init(struct Lcd *fds)
 	lcd_regWrite(LCD_CMD_DISPLAYMODE);
 	timer_delay(2);
 
-	memset(fds, 0, sizeof(*fds));
-
-	DB(fds->fd._type = KFT_LCD);
-	fds->fd.write = lcd_write;       // leave all but the write function as default
 }
 
 

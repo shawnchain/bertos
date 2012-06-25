@@ -47,8 +47,6 @@
 #include "cfg/cfg_lcd_hd44.h"
 #include <cfg/compiler.h> /* For stdint types */
 
-#include "io/kfile.h"
-
 /**
  * \name Values for CONFIG_LCD_ROWS.
  *
@@ -97,31 +95,6 @@
 #define LCD_CMD_MOVESHIFT_RIGHT  0x04
 /*\}*/
 
-/** Serial handle structure */
-typedef struct Lcd
-{
-	/** LCD has a KFile struct implementation **/
-	KFile fd;
-	uint8_t state;
-	uint8_t row;
-	uint8_t col;
-	int16_t addr;
-
-} Lcd;
-
-
-
-/**
- * ID for serial.
- */
-#define KFT_LCD MAKE_ID('H', 'D', '4', '4')
-
-
-INLINE Lcd * LCD_CAST(KFile *fd)
-{
-	ASSERT(fd->_type == KFT_LCD);
-	return (Lcd *)fd;
-}
 
 
 /** Type for combined LCD cursor position (x,y). */
@@ -132,8 +105,9 @@ void lcd_moveTo(uint8_t addr);
 void lcd_setReg(uint8_t val);
 void lcd_putc(uint8_t a, uint8_t c);
 void lcd_remapChar(const char *glyph, char code);
+void lcd_command(uint8_t value);
 void lcd_display(bool display, bool cursor, bool blink);
-void lcd_hw_init(struct Lcd *fds);
+void lcd_hw_init(void);
 void lcd_hw_test(void);
 
 #endif /* DRV_LCD_HD44_H */

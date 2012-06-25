@@ -45,25 +45,101 @@
  *
  */
 
+#include "term.h"
+
+#include "lcd_hd44.h"
+#include "timer.h"
+#include <string.h>
+
+
+/**
+ * \brief Write a character to the display, interpreting control codes in the data stream.
+ * Uses a simple set of control codes from an ancient dumb terminal.
+ *
+ */
+static void term_putchar(uint8_t c, struct Term *fds)
+{
+	switch (fds->state)
+	{
+	case TERM_STATE_NORMAL: /**< state that indicates we're passing data straight through */
+		switch (c)
+		{
+		case TERM_CPC:     /**< Cursor position prefix - followed by row + column */
+			fds->state = TERM_STATE_ROW;      // wait for row value
+			break;
+		case TERM_CLR:     /**< Clear screen */
+			fds->addr = 0;
+			lcd_command(LCD_CMD_CLEAR);
+			timer_delay(2);
+			break;
+		case TERM_HOME:    /**< Home */
+			fds->addr = 0;
+			break;
+		case TERM_UP:      /**< Cursor up  - no wrap */
+			if (fds->addr > CONFIG_LCD_COLS)
+				fds->addr -= CONFIG_LCD_COLS;
+			break;
+		case TERM_DOWN:    /**< Cursor down - also Line feed. No wrap */
+			if (fds->addr > (CONFIG_LCD_COLS * (CONFIG_LCD_ROWS - 1)))
+				fds->addr += CONFIG_LCD_COLS;
+			break;
+		case TERM_LEFT:    /**< Cursor left - no wrap */
+			if (!(fds->addr % CONFIG_LCD_COLS))
+				fds->addr -= 1;
+			break;
+		case TERM_RIGHT:   /**< Cursor right */
+			if (!(++fds->addr % CONFIG_LCD_COLS))
+				fds->addr -= 1;               // if goes onto next line then move back
+			break;
+		case TERM_CR:    /**< Carriage return */
+			fds->addr -= fds->addr % CONFIG_LCD_COLS;
+			break;
+		default:
+			lcd_putc(fds->addr, c);
+			fds->addr += 1;
+		}
+		break;
+	case TERM_STATE_ROW:  /**< state that indicates we're waiting for the row address */
+		fds->row = c - TERM_ROW;         /**< cursor position row offset */
+		fds->state = TERM_STATE_COL;     // wait for row value
+		break;
+	case TERM_STATE_COL:  /**< state that indicates we're waiting for the column address */
+		fds->col = c - TERM_COL;         /**< cursor position column offset */
+		fds->addr = (fds->row * CONFIG_LCD_COLS) + fds->col;
+		fds->state = TERM_STATE_NORMAL;  // return to normal processing - cursor address complete
+		break;
+	}
+}
 
 
 
-//receive stuff out of a kfile pipe
+/**
+ * \brief Write a buffer to LCD display.
+ *
+ * \return 0 if OK, EOF in case of error.
+ *
+ */
+static size_t term_write(struct KFile *fd, const void *_buf, size_t size)
+{
+	Term *fds = TERM_CAST(fd);
+	const char *buf = (const char *)_buf;
+
+	while (size--)
+	{
+		term_putchar(*buf++, fds);
+	}
+	return 0;
+}
 
 
+void term_init(struct Term *fds)
+{
+	memset(fds, 0, sizeof(*fds));
 
+	DB(fds->fd._type = KFT_TERM);
+	fds->fd.write = term_write;       // leave all but the write function as default
+	fds->state = TERM_STATE_NORMAL;   // start at known point
+	term_putchar(TERM_CLR, fds);      // clear screen, init address pointer
 
+}
 
-#define TERM_CPC     0x16     /**< Cursor position prefix - followed by row + column */
-#define TERM_ROW     0x20     /**< cursor position row offset */
-#define TERM_COL     0x20     /**< cursor position column offset */
-#define TERM_CLR     0x1f     /**< Clear screen */
-#define TERM_HOME    0x1d     /**< Home */
-#define TERM_UP      0x0b     /**< Cursor up */
-#define TERM_DOWN    0x0a     /**< Cursor down */
-#define TERM_LEFT    0x08     /**< Cursor left */
-#define TERM_RIGHT   0x18     /**< Cursor right */
-
-#define TERM_STATE_NORMAL   0x00    /**< state that indicates we're passing data straight through */
-#define TERM_STATE_ROW      0x01    /**< state that indicates we're waiting for the row address */
-#define TERM_STATE_COL      0x02    /**< state that indicates we're waiting for the column address */
