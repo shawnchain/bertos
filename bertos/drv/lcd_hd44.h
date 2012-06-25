@@ -95,8 +95,6 @@
 #define LCD_CMD_MOVESHIFT_RIGHT  0x04
 /*\}*/
 
-
-
 /** Type for combined LCD cursor position (x,y). */
 typedef uint8_t lcdpos_t;
 

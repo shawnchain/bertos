@@ -37,15 +37,12 @@
  */
 
 #include "lcd_hd44.h"
-#include "term.h"
 
 #include "hw/hw_lcd_hd44.h"
 
 #include "cfg/cfg_arch.h"
 
 #include <drv/timer.h>
-
-#include <io/kfile.h>
 
 #warning FIXME: Revise and refactor this code.
 
@@ -415,10 +412,6 @@ void lcd_remapfont(void)
 }
 #endif /* unused */
 
-
-
-
-
 void lcd_hw_init(void)
 {
 	lcd_hd44_hw_bus_init();
@@ -445,7 +438,6 @@ void lcd_hw_init(void)
 #endif
 	lcd_regWrite(LCD_CMD_DISPLAYMODE);
 	timer_delay(2);
-
 }
 
 
