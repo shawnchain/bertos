@@ -378,14 +378,22 @@ void lcd_remapChar(const char *glyph, char code)
 	lcd_setReg(lcd_address(lcd_current_addr));
 }
 
+
+/**
+ * Allow external access to an inline function so that the LCD can have commands sent to it!
+ */
 void lcd_command(uint8_t value)
 {
 	lcd_regWrite(value);
 }
 
+/**
+ * Allow control of the display on/off, cursor on/off and if the cursor is on then if it blinks or not.
+ */
 void lcd_display(bool display, bool cursor, bool blink )
 {
 	uint8_t value = LCD_CMD_DISPLAY_OFF;
+// not really magic numbers here - we *are* only talking about 1 type of LCD after all!!
 	value |= display ? 0x04 : 0;
 	value |= cursor ? 0x02 : 0;
 	value |= blink ? 0x01 : 0;
@@ -393,6 +401,9 @@ void lcd_display(bool display, bool cursor, bool blink )
 	timer_delay(2);
 }
 
+/**
+ * Avoid sharing macro defines for row and columns and allow upper levelels to interogate us.
+ */
 void lcd_getdims(uint8_t * rows, uint8_t * cols)
 {
 	*rows = CONFIG_LCD_ROWS;
