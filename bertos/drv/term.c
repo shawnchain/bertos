@@ -59,6 +59,8 @@
  */
 static void term_putchar(uint8_t c, struct Term *fds)
 {
+	uint8_t i;
+
 	switch (fds->state)
 	{
 	case TERM_STATE_NORMAL: /**< state that indicates we're passing data straight through */
@@ -71,40 +73,50 @@ static void term_putchar(uint8_t c, struct Term *fds)
 			fds->addr = 0;
 			lcd_command(LCD_CMD_CLEAR);
 			timer_delay(2);
+#if CONFIG_TERM_SCROLL == 1
+			for (i = 0; i < fds->cols * fds->rows; i++)
+				fds->scrollbuff[i] = ' ';
+#endif
 			break;
 		case TERM_HOME:    /**< Home */
 			fds->addr = 0;
 			break;
-		case TERM_UP:      /**< Cursor up  - no wrap */
-			if (fds->addr > fds->cols)
-				fds->addr -= fds->cols;
+		case TERM_UP:      /**< Cursor up  - no scroll but wraps to bottom */
+			fds->addr -= fds->cols;
+			if (fds->addr < 0)
+				fds->addr += (fds->cols * fds->rows);
 			break;
-		case TERM_DOWN:    /**< Cursor down - also Line feed. No scroll */
-			if (fds->addr < (fds->cols * (fds->rows - 1)))
-				fds->addr += fds->cols;
+		case TERM_DOWN:    /**< Cursor down - no scroll but wraps to top */
+			fds->addr += fds->cols;
+			fds->addr %= fds->cols * fds->rows;
 			break;
 		case TERM_LEFT:    /**< Cursor left - wrap top left to bottom right  */
 			if (--fds->addr < 0)
-				fds->addr += fds->cols * fds->rows;
+				fds->addr += (fds->cols * fds->rows);
 			break;
 		case TERM_RIGHT:   /**< Cursor right */
-			if (++fds->addr > (fds->cols * fds->rows))
+			if (++fds->addr >= (fds->cols * fds->rows))
 				fds->addr = 0;               // wrap bottom right to top left
 			break;
 		case TERM_CR:    /**< Carriage return */
-			fds->addr -= fds->addr % fds->cols;
+				for (i = fds->addr; (i % fds->cols) !=0; i++)
+				{
+					c = fds->scrollbuff[i] = ' ';
+					lcd_putc(i, ' ');
+				}
+			fds->addr -= (fds->addr % fds->cols);
 			break;
 		case TERM_LF:    /**< Line feed. Does scroll on last line if enabled else does cursor down */
 #if CONFIG_TERM_SCROLL == 1
-			if ((fds->addr / fds->cols) == fds->rows)         // see if on last row
+			if ((fds->addr / fds->cols) == (fds->rows - 1))         // see if on last row
 			{
-				uint8_t i;
 				lcd_command(LCD_CMD_CLEAR);
 				timer_delay(2);
 				for (i = 0; i < fds->cols * (fds->rows - 1); i++)
 				{
-					fds->scrollbuff[i] = fds->scrollbuff[i + fds->cols];
-					lcd_putc(i, fds->scrollbuff[i]);
+					c = fds->scrollbuff[i + fds->cols];
+					lcd_putc(i, c);
+					fds->scrollbuff[i] = c;
 				}
 			}
 			else
@@ -117,15 +129,21 @@ static void term_putchar(uint8_t c, struct Term *fds)
 
 		default:
 			lcd_putc(fds->addr, c);
-			fds->addr += 1;
+#if CONFIG_TERM_SCROLL == 1
+			fds->scrollbuff[fds->addr] = c;
+#endif
+			if (++fds->addr >= (fds->cols * fds->rows))
+				fds->addr = 0;               // wrap bottom right to top left
 		}
 		break;
 	case TERM_STATE_ROW:  /**< state that indicates we're waiting for the row address */
-		fds->tmp = c - TERM_ROW;         /**< cursor position row offset */
+		fds->tmp = c - TERM_ROW;         /**< cursor position row offset (0 based) */
 		fds->state = TERM_STATE_COL;     // wait for row value
 		break;
 	case TERM_STATE_COL:  /**< state that indicates we're waiting for the column address */
-		fds->addr = (fds->tmp * fds->cols) + (c - TERM_COL);
+		i = (fds->tmp * fds->cols) + (c - TERM_COL);
+		if (i < (fds->cols * fds->rows))
+			fds->addr = i;
 		fds->state = TERM_STATE_NORMAL;  // return to normal processing - cursor address complete
 		break;
 	}
@@ -143,12 +161,13 @@ static size_t term_write(struct KFile *fd, const void *_buf, size_t size)
 {
 	Term *fds = TERM_CAST(fd);
 	const char *buf = (const char *)_buf;
+	const size_t i = size;
 
 	while (size--)
 	{
 		term_putchar(*buf++, fds);
 	}
-	return 0;
+	return i;
 }
 
 
