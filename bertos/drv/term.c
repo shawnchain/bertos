@@ -101,7 +101,9 @@ static void term_putchar(uint8_t c, struct Term *fds)
 		case TERM_CR:    /**< Carriage return */
 				for (i = fds->addr; (i % fds->cols) !=0; i++)
 				{
+#if CONFIG_TERM_SCROLL == 1
 					c = fds->scrollbuff[i] = ' ';
+#endif
 					lcd_putc(i, ' ');
 				}
 			fds->addr -= (fds->addr % fds->cols);
