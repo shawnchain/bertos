@@ -52,10 +52,32 @@
 #include "lcd_hd44.h"
 
 #include "cfg/cfg_term.h"
-#include "cfg/cfg_lcd_hd44.h"
 
 #include "cfg/compiler.h"
 #include "io/kfile.h"
+
+
+/**
+ * \name Values for CONFIG_TERM_ROWS.
+ *
+ * Select the number of rows which are available
+ * on the terminal Display.
+ * $WIZ$ terminal_rows = "TERMINAL_ROWS_2", "TERMINAL_ROWS_4"
+ */
+#define TERMINAL_ROWS_2 2
+#define TERMINAL_ROWS_4 4
+
+/**
+ * \name Values for CONFIG_TERM_COLS.
+ *
+ * Select the number of columns which are available
+ * on the terminal Display.
+ * $WIZ$ terminal_cols = "TERMINAL_COLS_16", "TERMINAL_COLS_20"
+ */
+#define TERMINAL_COLS_16 16
+#define TERMINAL_COLS_20 20
+
+
 
 
 #define TERM_CPC     0x16     /**< Cursor position prefix - followed by row + column */
@@ -89,7 +111,7 @@ typedef struct Term
 	uint8_t cols;
 	int16_t addr;
 #if CONFIG_TERM_SCROLL == 1
-	uint8_t scrollbuff[CONFIG_LCD_COLS * CONFIG_LCD_ROWS];
+	uint8_t scrollbuff[CONFIG_TERM_COLS * CONFIG_TERM_ROWS];
 #endif
 } Term;
 

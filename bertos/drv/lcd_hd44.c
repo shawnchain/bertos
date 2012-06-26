@@ -401,14 +401,6 @@ void lcd_display(bool display, bool cursor, bool blink )
 	timer_delay(2);
 }
 
-/**
- * Avoid sharing macro defines for row and columns and allow upper levelels to interogate us.
- */
-void lcd_getdims(uint8_t * rows, uint8_t * cols)
-{
-	*rows = CONFIG_LCD_ROWS;
-	*cols = CONFIG_LCD_COLS;
-}
 
 #if 0 /* unused */
 void lcd_remapfont(void)
