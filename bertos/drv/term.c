@@ -134,6 +134,22 @@ static void term_putchar(uint8_t c, struct Term *fds)
 					fds->addr += CONFIG_TERM_COLS;
 			}
 			break;
+		case TERM_CURS_ON:     /**< Cursor ON */
+			fds->cursor |= CURSOR_ON;
+			lcd_display(1, fds->cursor & CURSOR_ON, fds->cursor & BLINK_ON);
+			break;
+		case TERM_CURS_OFF:    /**< Cursor OFF */
+			fds->cursor &= ~CURSOR_ON;
+			lcd_display(1, fds->cursor & CURSOR_ON, fds->cursor & BLINK_ON);
+			break;
+		case TERM_BLINK_ON:    /**< Cursor blink ON */
+			fds->cursor |= BLINK_ON;
+			lcd_display(1, fds->cursor & CURSOR_ON, fds->cursor & BLINK_ON);
+			break;
+		case TERM_BLINK_OFF:   /**< Cursor blink OFF */
+			fds->cursor &= ~BLINK_ON;
+			lcd_display(1, fds->cursor & CURSOR_ON, fds->cursor & BLINK_ON);
+			break;
 
 		default:
 			lcd_putc(fds->addr, c);
@@ -186,6 +202,8 @@ void term_init(struct Term *fds)
 	DB(fds->fd._type = KFT_TERM);
 	fds->fd.write = term_write;            // leave all but the write function as default
 	fds->state = TERM_STATE_NORMAL;        // start at known point
+	lcd_display(1, 0, 0);                  // display on, cursor & blink off
+	fds->cursor = 0;                       // local copy of cursor & blink state
 	term_putchar(TERM_CLR, fds);           // clear screen, init address pointer
 
 }

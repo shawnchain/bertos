@@ -86,17 +86,23 @@
 #define TERM_CLR     0x1f     /**< Clear screen */
 #define TERM_HOME    0x1d     /**< Home */
 #define TERM_UP      0x0b     /**< Cursor up */
-#define TERM_DOWN    0x07     /**< Cursor down */
+#define TERM_DOWN    0x06     /**< Cursor down */
 #define TERM_LEFT    0x08     /**< Cursor left */
 #define TERM_RIGHT   0x18     /**< Cursor right */
 #define TERM_CR      0x0d     /**< Carriage return */
 #define TERM_LF      0x0a     /**< Line feed (scrolling version of cursor down!) */
+#define TERM_CURS_ON    0x0f     /**< Cursor ON */
+#define TERM_CURS_OFF   0x0e     /**< Cursor OFF */
+#define TERM_BLINK_ON   0x1c     /**< Cursor blink ON */
+#define TERM_BLINK_OFF  0x1e     /**< Cursor blink OFF */
 
 #define TERM_STATE_NORMAL   0x00    /**< state that indicates we're passing data straight through */
 #define TERM_STATE_ROW      0x01    /**< state that indicates we're waiting for the row address */
 #define TERM_STATE_COL      0x02    /**< state that indicates we're waiting for the column address */
 
 
+#define CURSOR_ON           1
+#define BLINK_ON            2
 
 
 
@@ -110,6 +116,7 @@ typedef struct Term
 	uint8_t rows;
 	uint8_t cols;
 	int16_t addr;
+	uint8_t cursor;
 #if CONFIG_TERM_SCROLL == 1
 	uint8_t scrollbuff[CONFIG_TERM_COLS * CONFIG_TERM_ROWS];
 #endif

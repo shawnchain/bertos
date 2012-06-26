@@ -69,7 +69,7 @@ static void init(void)
 	 * In order to activate the serial driver you should disable
 	 * the debugging module.
 	 */
-#if 1
+#if 0
 	/* Initialize UART0 */
 	ser_init(&out, SER_UART0);
 	/* Configure UART0 to work at 115.200 bps */
@@ -78,7 +78,6 @@ static void init(void)
 	(void)out;
 #endif
 	lcd_hw_init();
-	lcd_display(1, 0, 0);
 	term_init(&term);
 
 }
