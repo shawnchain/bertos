@@ -88,7 +88,8 @@ int main(void)
 
 	while (1)
 	{
-		kfile_printf(&term.fd, "\x1f");
+		// Assumes 20x4 display
+		// Basic CR/LF functionality, scrolling on LF on bottom line and wrapping
 		kfile_printf(&term.fd, "On line 1 I hope!!\r\n");
 		timer_delay(3000);
 		kfile_printf(&term.fd, "On line 2\r\nand now line 3\r\n");
@@ -100,6 +101,7 @@ int main(void)
 		kfile_printf(&term.fd, "Wrap onto line 1\r\n");
 		timer_delay(5000);
 
+		// Cursor up/down/left/right and direct addressing
 		kfile_printf(&term.fd, "Onto next line and  clear to EOL");
 		timer_delay(3000);
 		kfile_printf(&term.fd, "\r \r");
@@ -111,6 +113,27 @@ int main(void)
 		kfile_printf(&term.fd, "\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8**Back 32");
 		timer_delay(3000);
 		kfile_printf(&term.fd, "\xb\xb\xb\xb\xb\xb\xbUp 7=down 1\r\n");
+		timer_delay(3000);
+
+		// Advanced: cursor control, pseudo flash
+		kfile_printf(&term.fd, "\x1f");
+		kfile_printf(&term.fd, "Cursor on \x0f ");
+		timer_delay(3000);
+		kfile_printf(&term.fd, "\r\nCursor blink \x1c ");
+		timer_delay(3000);
+		kfile_printf(&term.fd, "\r\nCursor off \xe\x1e \r\n");
+		timer_delay(3000);
+		for (int i=0; i < 10; i++)
+		{
+			kfile_printf(&term.fd, "\x16\x23\x20Simulated flash");
+			timer_delay(800);
+			kfile_printf(&term.fd, "\x16\x23\x2a     ");
+			timer_delay(500);
+		}
+		timer_delay(3000);
+		kfile_printf(&term.fd, "\x16\x20\x20\r \rDone - repeating");
+		timer_delay(3000);
+		kfile_printf(&term.fd, "\x1f");
 		timer_delay(3000);
 	}
 }
