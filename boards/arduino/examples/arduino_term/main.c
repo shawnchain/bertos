@@ -110,7 +110,7 @@ int main(void)
 		timer_delay(3000);
 		kfile_printf(&term.fd, "\xb**Up");
 		timer_delay(3000);
-		kfile_printf(&term.fd, "\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8**Back 21");
+		kfile_printf(&term.fd, "\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8**Back 29");
 		timer_delay(3000);
 		kfile_printf(&term.fd, "\xb\xb\xb\xb\xb\xb\xbUp 7=down 1\r\n");
 		timer_delay(3000);
@@ -134,6 +134,5 @@ int main(void)
 		kfile_printf(&term.fd, "\x16\x20\x20 \rDone - repeating");
 		timer_delay(3000);
 		kfile_printf(&term.fd, "\x1f");
-		timer_delay(3000);
 	}
 }
