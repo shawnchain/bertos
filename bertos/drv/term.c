@@ -32,6 +32,8 @@
  *
  * \brief Terminal emulator driver.
  *
+ * Uses kfile interface to stream data to an LCD display device such as an HD44780.
+ *
  * Control codes and cursor addressing based on the old Newbury Data Recording 8000
  * series dumb terminal which is nice and simple.
  *

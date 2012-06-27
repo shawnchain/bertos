@@ -26,16 +26,16 @@
  * invalidate any other reasons why the executable file might be covered by
  * the GNU General Public License.
  *
- * Copyright 2010 Develer S.r.l. (http://www.develer.com/)
+ * Copyright 2012 Robin Gilks (g8ecj at gilks.org)
  *
  * -->
  *
- * \author Andrea Righi <arighi@develer.com>
+ * \brief Terminal emulator example.
  *
- * \brief Empty project.
+ * \author Robin Gilks <g8ecj@gilks.org>
  *
- * This is a minimalist project, it just initializes the hardware of the
- * supported board and proposes an empty main.
+ * \brief Example of driving the terminal emulator to an LCD Panel.
+ *
  */
 
 #include "hw/hw_led.h"

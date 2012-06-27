@@ -32,17 +32,8 @@
  *
  * \brief Terminal emulator driver.
  *
- * Control codes and cursor addressing based on the old Newbury Data Recording 8000
- * series dumb terminal which is nice and simple.
- *
- * Cursor positioning is done with [0x16][0x20+row][0x20+col]. All other codes are single control characters.
- * The application generates a stream with the following control codes, the terminal emulator layer interpretss
- * the codes for a specific device -
- * eg. ANSI sequencies to send to a serial terminal,
- *     direct cursor addressing on an LCD panel
- *
  * \author Robin Gilks <g8ecj@gilks.org>
-
+ *
  * $WIZ$ module_name = "term"
  * $WIZ$ module_depends = "lcd_hd44"
  * $WIZ$ module_configuration = "bertos/cfg/cfg_term.h"
