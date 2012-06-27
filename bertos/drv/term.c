@@ -69,13 +69,14 @@ static void term_putchar(uint8_t c, struct Term *fds)
 
 	switch (fds->state)
 	{
-	case TERM_STATE_NORMAL: /**< state that indicates we're passing data straight through */
+	case TERM_STATE_NORMAL: /* state that indicates we're passing data straight through */
 		switch (c)
 		{
-		case TERM_CPC:     /**< Cursor position prefix - followed by row + column */
+		case TERM_CPC:     /* Cursor position prefix - followed by row + column */
 			fds->state = TERM_STATE_ROW;      // wait for row value
 			break;
-		case TERM_CLR:     /**< Clear screen */
+
+		case TERM_CLR:     /* Clear screen */
 			fds->addr = 0;
 			lcd_command(LCD_CMD_CLEAR);
 			timer_delay(2);
@@ -84,27 +85,33 @@ static void term_putchar(uint8_t c, struct Term *fds)
 				fds->scrollbuff[i] = ' ';
 #endif
 			break;
-		case TERM_HOME:    /**< Home */
+
+		case TERM_HOME:    /* Home */
 			fds->addr = 0;
 			break;
-		case TERM_UP:      /**< Cursor up  - no scroll but wraps to bottom */
+
+		case TERM_UP:      /* Cursor up  - no scroll but wraps to bottom */
 			fds->addr -= CONFIG_TERM_COLS;
 			if (fds->addr < 0)
 				fds->addr += (CONFIG_TERM_COLS * CONFIG_TERM_ROWS);
 			break;
-		case TERM_DOWN:    /**< Cursor down - no scroll but wraps to top */
+
+		case TERM_DOWN:    /* Cursor down - no scroll but wraps to top */
 			fds->addr += CONFIG_TERM_COLS;
 			fds->addr %= CONFIG_TERM_COLS * CONFIG_TERM_ROWS;
 			break;
-		case TERM_LEFT:    /**< Cursor left - wrap top left to bottom right  */
+
+		case TERM_LEFT:    /* Cursor left - wrap top left to bottom right  */
 			if (--fds->addr < 0)
 				fds->addr += (CONFIG_TERM_COLS * CONFIG_TERM_ROWS);
 			break;
-		case TERM_RIGHT:   /**< Cursor right */
+
+		case TERM_RIGHT:   /* Cursor right */
 			if (++fds->addr >= (CONFIG_TERM_COLS * CONFIG_TERM_ROWS))
 				fds->addr = 0;               // wrap bottom right to top left
 			break;
-		case TERM_CR:    /**< Carriage return */
+
+		case TERM_CR:    /* Carriage return */
 				for (i = fds->addr; (i % CONFIG_TERM_COLS) !=0; i++)
 				{
 #if CONFIG_TERM_SCROLL == 1
@@ -114,7 +121,8 @@ static void term_putchar(uint8_t c, struct Term *fds)
 				}
 			fds->addr -= (fds->addr % CONFIG_TERM_COLS);
 			break;
-		case TERM_LF:    /**< Line feed. Does scroll on last line if enabled else does cursor down */
+
+		case TERM_LF:    /* Line feed. Does scroll on last line if enabled else does cursor down */
 #if CONFIG_TERM_SCROLL == 1
 			if ((fds->addr / CONFIG_TERM_COLS) == (CONFIG_TERM_ROWS - 1))         // see if on last row
 			{
@@ -134,19 +142,23 @@ static void term_putchar(uint8_t c, struct Term *fds)
 					fds->addr += CONFIG_TERM_COLS;
 			}
 			break;
-		case TERM_CURS_ON:     /**< Cursor ON */
+
+		case TERM_CURS_ON:     /* Cursor ON */
 			fds->cursor |= CURSOR_ON;
 			lcd_display(1, fds->cursor & CURSOR_ON, fds->cursor & BLINK_ON);
 			break;
-		case TERM_CURS_OFF:    /**< Cursor OFF */
+
+		case TERM_CURS_OFF:    /* Cursor OFF */
 			fds->cursor &= ~CURSOR_ON;
 			lcd_display(1, fds->cursor & CURSOR_ON, fds->cursor & BLINK_ON);
 			break;
-		case TERM_BLINK_ON:    /**< Cursor blink ON */
+
+		case TERM_BLINK_ON:    /* Cursor blink ON */
 			fds->cursor |= BLINK_ON;
 			lcd_display(1, fds->cursor & CURSOR_ON, fds->cursor & BLINK_ON);
 			break;
-		case TERM_BLINK_OFF:   /**< Cursor blink OFF */
+
+		case TERM_BLINK_OFF:   /* Cursor blink OFF */
 			fds->cursor &= ~BLINK_ON;
 			lcd_display(1, fds->cursor & CURSOR_ON, fds->cursor & BLINK_ON);
 			break;
@@ -160,11 +172,14 @@ static void term_putchar(uint8_t c, struct Term *fds)
 				fds->addr = 0;               // wrap bottom right to top left
 		}
 		break;
-	case TERM_STATE_ROW:  /**< state that indicates we're waiting for the row address */
-		fds->tmp = c - TERM_ROW;         /**< cursor position row offset (0 based) */
+
+
+	case TERM_STATE_ROW:  /* state that indicates we're waiting for the row address */
+		fds->tmp = c - TERM_ROW;         /* cursor position row offset (0 based) */
 		fds->state = TERM_STATE_COL;     // wait for row value
 		break;
-	case TERM_STATE_COL:  /**< state that indicates we're waiting for the column address */
+
+	case TERM_STATE_COL:  /* state that indicates we're waiting for the column address */
 		i = (fds->tmp * CONFIG_TERM_COLS) + (c - TERM_COL);
 		if (i < (CONFIG_TERM_COLS * CONFIG_TERM_ROWS))
 			fds->addr = i;

@@ -109,14 +109,11 @@
 /** Terminal handle structure */
 typedef struct Term
 {
-	/** Terminal has a KFile struct implementation **/
-	KFile fd;
-	uint8_t state;
-	uint8_t tmp;
-	uint8_t rows;
-	uint8_t cols;
-	int16_t addr;
-	uint8_t cursor;
+	KFile fd;                 /** Terminal has a KFile struct implementation */
+	uint8_t state;            /** What to expect next in the data stream */
+	uint8_t tmp;              /** used whilst calculating new address from row/column */
+	int16_t addr;             /** LCD address to write to */
+	uint8_t cursor;           /** state of cursor (ON/OFF, blink) */
 #if CONFIG_TERM_SCROLL == 1
 	uint8_t scrollbuff[CONFIG_TERM_COLS * CONFIG_TERM_ROWS];
 #endif
@@ -128,7 +125,7 @@ typedef struct Term
 
 
 /**
- * ID for serial.
+ * ID for terminal.
  */
 #define KFT_TERM MAKE_ID('T', 'E', 'R', 'M')
 
