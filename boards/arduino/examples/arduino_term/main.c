@@ -89,7 +89,7 @@ int main(void)
 	while (1)
 	{
 		// Assumes 20x4 display
-		// Basic CR/LF functionality, scrolling on LF on bottom line and wrapping
+		// Basic: CR/LF functionality, scrolling on LF on bottom line and wrapping
 		kfile_printf(&term.fd, "On line 1 I hope!!\r\n");
 		timer_delay(3000);
 		kfile_printf(&term.fd, "On line 2\r\nand now line 3\r\n");
@@ -101,7 +101,7 @@ int main(void)
 		kfile_printf(&term.fd, "Wrap onto line 1\r\n");
 		timer_delay(5000);
 
-		// Cursor up/down/left/right and direct addressing
+		// Intermediate: Cursor up/down/left/right and direct addressing
 		kfile_printf(&term.fd, "Onto next line and  clear to EOL");
 		timer_delay(3000);
 		kfile_printf(&term.fd, "\r \r");
@@ -110,12 +110,12 @@ int main(void)
 		timer_delay(3000);
 		kfile_printf(&term.fd, "\xb**Up");
 		timer_delay(3000);
-		kfile_printf(&term.fd, "\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8**Back 32");
+		kfile_printf(&term.fd, "\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8**Back 21");
 		timer_delay(3000);
 		kfile_printf(&term.fd, "\xb\xb\xb\xb\xb\xb\xbUp 7=down 1\r\n");
 		timer_delay(3000);
 
-		// Advanced: cursor control, pseudo flash
+		// Advanced: Cursor control, pseudo flash
 		kfile_printf(&term.fd, "\x1f");
 		kfile_printf(&term.fd, "Cursor on \x0f ");
 		timer_delay(3000);
@@ -131,7 +131,7 @@ int main(void)
 			timer_delay(500);
 		}
 		timer_delay(3000);
-		kfile_printf(&term.fd, "\x16\x20\x20\r \rDone - repeating");
+		kfile_printf(&term.fd, "\x16\x20\x20 \rDone - repeating");
 		timer_delay(3000);
 		kfile_printf(&term.fd, "\x1f");
 		timer_delay(3000);
