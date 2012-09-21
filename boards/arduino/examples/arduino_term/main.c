@@ -123,16 +123,21 @@ int main(void)
 		timer_delay(3000);
 		kfile_printf(&term.fd, "\r\nCursor off \xe\x1e \r\n");
 		timer_delay(3000);
+
+		// a way to avoid strange character sequences and use the #defines instead
+		kfile_printf(&term.fd, "%c%c%c%s", TERM_CPC, TERM_ROW + 3, TERM_COL + 0, "Simulated");
 		for (int i=0; i < 10; i++)
 		{
-			kfile_printf(&term.fd, "\x16\x23\x20Simulated flash");
+			char spaces[10] = "         ";
+			kfile_printf(&term.fd, "%c%c%c%s", TERM_CPC, TERM_ROW + 3, TERM_COL + 10, " flash");
 			timer_delay(800);
-			kfile_printf(&term.fd, "\x16\x23\x2a     ");
+			kfile_printf(&term.fd, "%c%c%c%*s", TERM_CPC, TERM_ROW + 3, TERM_COL + 10, 6, spaces);
 			timer_delay(500);
 		}
 		timer_delay(3000);
-		kfile_printf(&term.fd, "\x16\x20\x20 \rDone - repeating");
+		kfile_printf(&term.fd, "%c%c%c", TERM_CPC, TERM_ROW + 0, TERM_COL + 5);
+		kfile_printf(&term.fd, "\rDone - repeating");
 		timer_delay(3000);
-		kfile_printf(&term.fd, "\x1f");
+		kfile_printf(&term.fd, "%c", TERM_CLR);
 	}
 }

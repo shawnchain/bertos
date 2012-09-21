@@ -17,15 +17,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * As a special exception, you may use this file as part of a free software
- * library without restriction.  Specifically, if other files instantiate
- * templates or use macros or inline functions from this file, or you compile
- * this file and link it with other files to produce an executable, this
- * file does not by itself cause the resulting executable to be covered by
- * the GNU General Public License.  This exception does not however
- * invalidate any other reasons why the executable file might be covered by
- * the GNU General Public License.
- *
  * Copyright 2012 Robin Gilks (g8ecj at gilks.org)
  *
  * -->
@@ -52,6 +43,17 @@
 #include "lcd_hd44.h"
 #include "timer.h"
 #include <string.h>
+
+
+#define TERM_STATE_NORMAL   0x00    /**< state that indicates we're passing data straight through */
+#define TERM_STATE_ROW      0x01    /**< state that indicates we're waiting for the row address */
+#define TERM_STATE_COL      0x02    /**< state that indicates we're waiting for the column address */
+
+
+#define CURSOR_ON           1
+#define BLINK_ON            2
+
+
 
 #if 1
 #include "cfg/cfg_lcd_hd44.h"
@@ -195,6 +197,9 @@ static void term_putchar(uint8_t c, struct Term *fds)
 /**
  * \brief Write a buffer to LCD display.
  *
+ * \param fd caste term context.
+ * \param _buf pointer to buffer to write
+ * \param size length of buffer.
  * \return 0 if OK, EOF in case of error.
  *
  */
@@ -211,6 +216,12 @@ static size_t term_write(struct KFile *fd, const void *_buf, size_t size)
 	return i;
 }
 
+
+/**
+ * \brief Initialise the terminal context
+ *
+ * \param fds term context.
+ */
 
 void term_init(struct Term *fds)
 {

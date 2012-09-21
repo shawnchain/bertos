@@ -17,18 +17,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * As a special exception, you may use this file as part of a free software
- * library without restriction.  Specifically, if other files instantiate
- * templates or use macros or inline functions from this file, or you compile
- * this file and link it with other files to produce an executable, this
- * file does not by itself cause the resulting executable to be covered by
- * the GNU General Public License.  This exception does not however
- * invalidate any other reasons why the executable file might be covered by
- * the GNU General Public License.
- *
  * Copyright 2012 Robin Gilks (g8ecj at gilks.org)
  *
  * -->
+ *
+ * \defgroup term_driver Terminal Emulator driver
+ * \ingroup drivers
+ * \{
  *
  * \brief Terminal emulator driver.
  *
@@ -40,12 +35,98 @@
  *
  */
 
+
+#ifndef TERM_H_
+#define TERM_H_
+
+
 #include "lcd_hd44.h"
 
 #include "cfg/cfg_term.h"
 
 #include "cfg/compiler.h"
 #include "io/kfile.h"
+
+
+
+
+#define TERM_CPC     0x16     /**< Cursor position prefix - followed by row + column */
+#define TERM_ROW     0x20     /**< cursor position row offset */
+#define TERM_COL     0x20     /**< cursor position column offset */
+#define TERM_CLR     0x1f     /**< Clear screen */
+#define TERM_HOME    0x1d     /**< Home */
+#define TERM_UP      0x0b     /**< Cursor up */
+#define TERM_DOWN    0x06     /**< Cursor down */
+#define TERM_LEFT    0x08     /**< Cursor left */
+#define TERM_RIGHT   0x18     /**< Cursor right */
+#define TERM_CR      0x0d     /**< Carriage return */
+#define TERM_LF      0x0a     /**< Line feed (scrolling version of cursor down!) */
+#define TERM_CURS_ON    0x0f     /**< Cursor ON */
+#define TERM_CURS_OFF   0x0e     /**< Cursor OFF */
+#define TERM_BLINK_ON   0x1c     /**< Cursor blink ON */
+#define TERM_BLINK_OFF  0x1e     /**< Cursor blink OFF */
+
+/**
+ * ID for terminal.
+ */
+#define KFT_TERM MAKE_ID('T', 'E', 'R', 'M')
+
+
+
+/** Terminal handle structure */
+typedef struct Term
+{
+	KFile fd;                 /** Terminal has a KFile struct implementation */
+	uint8_t state;            /** What to expect next in the data stream */
+	uint8_t tmp;              /** used whilst calculating new address from row/column */
+	int16_t addr;             /** LCD address to write to */
+	uint8_t cursor;           /** state of cursor (ON/OFF, blink) */
+#if CONFIG_TERM_SCROLL == 1
+	uint8_t scrollbuff[CONFIG_TERM_COLS * CONFIG_TERM_ROWS];
+#endif
+} Term;
+
+
+	/**
+	 * \defgroup term_api Terminal API
+	 * With this driver you can stream text to an LCD screen and control its appearance with control codes.
+	 * As well as the simple CR/LF codes, there are clear, up/down/left/right and direct cursor addesses codes available.
+	 *
+	 * API usage example:
+	 * \code
+	 * static Term term;
+	 * static const char lcd_sdcard[8] = { 0x1f, 0x11, 0x11, 0x11, 0x11, 0x11, 0x12, 0x1c };   // sd card - bent rectangle!
+	 * lcd_hw_init ();
+	 * lcd_display (1, 0, 0);                // display on, cursor off, blink off
+	 * lcd_remapChar (lcd_sdcard, 2);        // put the sd card symbol on character 0x02
+	 * term_init(&term);
+	 * // clear screen, print text
+	 * kfile_printf(&term.fd, "%c", TERM_CLR);
+	 * kfile_printf(&term.fd, "On line 1 I hope!!\r\n");
+	 * kfile_printf(&term.fd, "On line 2\r\nand now line 3\r\n");
+	 * kfile_printf(&term.fd, "On line 4\r");
+	 * kfile_printf(&term.fd, "\nScrolled - this on 4");
+	 * // indicate there is an sd card plugged in (or not!!) with icon or space
+	 * kfile_printf (&term.fd, "%c%c%c%c", TERM_CPC, TERM_ROW + 0, TERM_COL + 19, sd_ok ? 0x02 : 0x20);
+	 * \endcode
+	 * \{
+	 */
+
+
+
+
+INLINE Term * TERM_CAST(KFile *fd)
+{
+	ASSERT(fd->_type == KFT_TERM);
+	return (Term *)fd;
+}
+
+
+void term_init(struct Term *fds);
+
+	/** \} */ //defgroup term_api
+
+/** \} */ //defgroup term_driver
 
 
 /**
@@ -70,64 +151,6 @@
 
 
 
-
-#define TERM_CPC     0x16     /**< Cursor position prefix - followed by row + column */
-#define TERM_ROW     0x20     /**< cursor position row offset */
-#define TERM_COL     0x20     /**< cursor position column offset */
-#define TERM_CLR     0x1f     /**< Clear screen */
-#define TERM_HOME    0x1d     /**< Home */
-#define TERM_UP      0x0b     /**< Cursor up */
-#define TERM_DOWN    0x06     /**< Cursor down */
-#define TERM_LEFT    0x08     /**< Cursor left */
-#define TERM_RIGHT   0x18     /**< Cursor right */
-#define TERM_CR      0x0d     /**< Carriage return */
-#define TERM_LF      0x0a     /**< Line feed (scrolling version of cursor down!) */
-#define TERM_CURS_ON    0x0f     /**< Cursor ON */
-#define TERM_CURS_OFF   0x0e     /**< Cursor OFF */
-#define TERM_BLINK_ON   0x1c     /**< Cursor blink ON */
-#define TERM_BLINK_OFF  0x1e     /**< Cursor blink OFF */
-
-#define TERM_STATE_NORMAL   0x00    /**< state that indicates we're passing data straight through */
-#define TERM_STATE_ROW      0x01    /**< state that indicates we're waiting for the row address */
-#define TERM_STATE_COL      0x02    /**< state that indicates we're waiting for the column address */
+#endif TERM_H_
 
 
-#define CURSOR_ON           1
-#define BLINK_ON            2
-
-
-
-/** Terminal handle structure */
-typedef struct Term
-{
-	KFile fd;                 /** Terminal has a KFile struct implementation */
-	uint8_t state;            /** What to expect next in the data stream */
-	uint8_t tmp;              /** used whilst calculating new address from row/column */
-	int16_t addr;             /** LCD address to write to */
-	uint8_t cursor;           /** state of cursor (ON/OFF, blink) */
-#if CONFIG_TERM_SCROLL == 1
-	uint8_t scrollbuff[CONFIG_TERM_COLS * CONFIG_TERM_ROWS];
-#endif
-} Term;
-
-
-
-
-
-
-/**
- * ID for terminal.
- */
-#define KFT_TERM MAKE_ID('T', 'E', 'R', 'M')
-
-
-INLINE Term * TERM_CAST(KFile *fd)
-{
-	ASSERT(fd->_type == KFT_TERM);
-	return (Term *)fd;
-}
-
-
-
-
-void term_init(struct Term *fds);
