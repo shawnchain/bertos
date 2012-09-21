@@ -116,15 +116,18 @@ int main(void)
 		timer_delay(3000);
 
 		// Advanced: Cursor control, pseudo flash
-		kfile_printf(&term.fd, "\x1f");
-		kfile_printf(&term.fd, "Cursor on \x0f ");
+		// a way to avoid strange character sequences and use the #defines instead
+		kfile_printf(&term.fd, "%c", TERM_CLR);
+		kfile_printf(&term.fd, "Cursor on ");
+		kfile_printf(&term.fd, "%c", TERM_CURS_ON);
 		timer_delay(3000);
-		kfile_printf(&term.fd, "\r\nCursor blink \x1c ");
+		kfile_printf(&term.fd, "\r\nCursor blink  ");
+		kfile_printf(&term.fd, "%c", TERM_BLINK_ON);
 		timer_delay(3000);
-		kfile_printf(&term.fd, "\r\nCursor off \xe\x1e \r\n");
+		kfile_printf(&term.fd, "\r\nCursor off \r\n");
+		kfile_printf(&term.fd, "%c%c", TERM_CURS_OFF, TERM_BLINK_OFF);
 		timer_delay(3000);
 
-		// a way to avoid strange character sequences and use the #defines instead
 		kfile_printf(&term.fd, "%c%c%c%s", TERM_CPC, TERM_ROW + 3, TERM_COL + 0, "Simulated");
 		for (int i=0; i < 10; i++)
 		{
