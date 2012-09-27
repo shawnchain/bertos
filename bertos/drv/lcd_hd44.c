@@ -44,7 +44,7 @@
 
 #include <drv/timer.h>
 
-#warning FIXME: Revise and refactor this code.
+//#warning FIXME: Revise and refactor this code.
 
 #if defined(LCD_READ_H) && defined(LCD_READ_L) && defined(LCD_WRITE_H) && defined(LCD_WRITE_L)
 	#define CONFIG_LCD_4BIT 1
@@ -394,9 +394,9 @@ void lcd_display(bool display, bool cursor, bool blink )
 {
 	uint8_t value = LCD_CMD_DISPLAY_OFF;
 // not really magic numbers here - we *are* only talking about 1 type of LCD after all!!
-	value |= display ? 0x04 : 0;
-	value |= cursor ? 0x02 : 0;
-	value |= blink ? 0x01 : 0;
+	value |= display ? 0x04 : 0; 
+	value |= cursor ? 0x02 : 0; 
+	value |= blink ? 0x01 : 0; 
 	lcd_regWrite(value);
 	timer_delay(2);
 }

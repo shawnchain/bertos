@@ -21,9 +21,6 @@
  *
  * -->
  *
- * \defgroup term_driver Terminal Emulator driver
- * \ingroup drivers
- * \{
  *
  * \brief Terminal emulator driver.
  *
@@ -48,7 +45,33 @@
 #include "io/kfile.h"
 
 
+/**
+ * \name Values for CONFIG_TERM_ROWS.
+ *
+ * Select the number of rows which are available
+ * on the terminal Display.
+ * $WIZ$ terminal_rows = "TERMINAL_ROWS_2", "TERMINAL_ROWS_4"
+ */
+#define TERMINAL_ROWS_2 2
+#define TERMINAL_ROWS_4 4
 
+/**
+ * \name Values for CONFIG_TERM_COLS.
+ *
+ * Select the number of columns which are available
+ * on the terminal Display.
+ * $WIZ$ terminal_cols = "TERMINAL_COLS_16", "TERMINAL_COLS_20"
+ */
+#define TERMINAL_COLS_16 16
+#define TERMINAL_COLS_20 20
+
+
+
+/**
+ * \defgroup term_driver Terminal Emulator driver
+ * \ingroup drivers
+ * \{
+ */
 
 #define TERM_CPC     0x16     /**< Cursor position prefix - followed by row + column */
 #define TERM_ROW     0x20     /**< cursor position row offset */
@@ -129,28 +152,7 @@ void term_init(struct Term *fds);
 /** \} */ //defgroup term_driver
 
 
-/**
- * \name Values for CONFIG_TERM_ROWS.
- *
- * Select the number of rows which are available
- * on the terminal Display.
- * $WIZ$ terminal_rows = "TERMINAL_ROWS_2", "TERMINAL_ROWS_4"
- */
-#define TERMINAL_ROWS_2 2
-#define TERMINAL_ROWS_4 4
 
-/**
- * \name Values for CONFIG_TERM_COLS.
- *
- * Select the number of columns which are available
- * on the terminal Display.
- * $WIZ$ terminal_cols = "TERMINAL_COLS_16", "TERMINAL_COLS_20"
- */
-#define TERMINAL_COLS_16 16
-#define TERMINAL_COLS_20 20
-
-
-
-#endif TERM_H_
+#endif /* TERM_H_ */
 
 
