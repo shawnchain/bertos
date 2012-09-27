@@ -26,17 +26,17 @@
  * invalidate any other reasons why the executable file might be covered by
  * the GNU General Public License.
  *
- * Copyright 2008 Develer S.r.l. (http://www.develer.com/)
+ * Copyright 2012 Robin Gilks
  *
  * -->
  *
- * \brief Configuration file for AFSK1200 modem.
+ * \brief Configuration file for the KISS protocol module.
  *
- * \author Francesco Sacchi <asterix@develer.com>
+ * \author Robin Gilks <g8ecj@gilks.org>
  */
 
-#ifndef CFG_AFSK_H
-#define CFG_AFSK_H
+#ifndef CFG_KISS_H
+#define CFG_KISS_H
 
 /**
  * Module logging level.
@@ -44,7 +44,7 @@
  * $WIZ$ type = "enum"
  * $WIZ$ value_list = "log_level"
  */
-#define AFSK_LOG_LEVEL      LOG_LVL_WARN
+#define KISS_LOG_LEVEL      LOG_LVL_WARN
 
 /**
  * Module logging format.
@@ -52,69 +52,22 @@
  * $WIZ$ type = "enum"
  * $WIZ$ value_list = "log_format"
  */
-#define AFSK_LOG_FORMAT     LOG_FMT_TERSE
-
-
-/**
- * AFSK discriminator filter type.
- *
- * $WIZ$ type = "enum"; value_list = "afsk_filter_list"
- */
-#define CONFIG_AFSK_FILTER AFSK_CHEBYSHEV
-
+#define KISS_LOG_FORMAT     LOG_FMT_TERSE
 
 /**
- * AFSK receiver buffer fifo length.
+ * KISS frame buffer length.
  *
  * $WIZ$ type = "int"
- * $WIZ$ min = 2
+ * $WIZ$ min = 18
  */
-#define CONFIG_AFSK_RX_BUFLEN 32
+#define CONFIG_KISS_FRAME_BUF_LEN 530
 
 /**
- * AFSK transimtter buffer fifo length.
+ * KISS minimum frame buffer length.
  *
  * $WIZ$ type = "int"
- * $WIZ$ min = 2
+ * $WIZ$ min = 3
  */
-#define CONFIG_AFSK_TX_BUFLEN 32
+#define KISS_MIN_FRAME_LEN 10
 
-/**
- * AFSK DAC sample rate for modem outout.
- * $WIZ$ type = "int"
- * $WIZ$ min = 2400
- */
-#define CONFIG_AFSK_DAC_SAMPLERATE 9600
-
-/**
- * AFSK RX timeout in ms, set to -1 to disable.
- * $WIZ$ type = "int"
- * $WIZ$ min = -1
- */
-#define CONFIG_AFSK_RXTIMEOUT 0
-
-
-/**
- * AFSK Preamble length in [ms], before starting transmissions.
- * $WIZ$ type = "int"
- * $WIZ$ min = 1
- */
-#define CONFIG_AFSK_PREAMBLE_LEN 300UL
-
-
-/**
- * AFSK Trailer length in [ms], before stopping transmissions.
- * $WIZ$ type = "int"
- * $WIZ$ min = 1
- */
-#define CONFIG_AFSK_TRAILER_LEN 50UL
-
-/**
- * Use PWM TX rather than weighted resistor DAC
- *
- * $WIZ$ type = "boolean"
- */
-#define CONFIG_AFSK_PWM_TX   1
-
-
-#endif /* CFG_AFSK_H */
+#endif /* CFG_KISS_H */

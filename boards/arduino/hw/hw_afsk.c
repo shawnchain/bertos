@@ -91,7 +91,9 @@ DECLARE_ISR(ADC_vect)
 	TIFR1 = BV(ICF1);
 	afsk_adc_isr(ctx, ((int16_t)((ADC) >> 2) - 128));
 	if (hw_afsk_dac_isr)
+#if CONFIG_AFSK_PWM_TX == 1
+		OCR2B = afsk_dac_isr(ctx);             // uses timer 2 on port D bit 3
+#else
 		PORTD = afsk_dac_isr(ctx) & 0xF0;
-	else
-		PORTD = 128;
+#endif
 }

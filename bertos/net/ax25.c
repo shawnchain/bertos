@@ -40,8 +40,8 @@
 
 #include "ax25.h"
 #include "cfg/cfg_ax25.h"
+#include "hdlc.h"
 
-#include <algo/crc_ccitt.h>
 
 #define LOG_LEVEL  AX25_LOG_LEVEL
 #define LOG_FORMAT AX25_LOG_FORMAT
@@ -119,7 +119,7 @@ static void ax25_decode(AX25Ctx *ctx)
 		return;
 	}
 
-	msg.len = ctx->frm_len - 2 - (buf - ctx->buf);
+	msg.len = ctx->frm_len - (buf - ctx->buf);
 	msg.info = buf;
 	LOG_INFO("DATA: %.*s\n", msg.len, msg.info);
 
@@ -144,69 +144,59 @@ void ax25_poll(AX25Ctx *ctx)
 
 	while ((c = kfile_getc(ctx->ch)) != EOF)
 	{
-		if (!ctx->escape && c == HDLC_FLAG)
+		if (ctx->frm_len < CONFIG_AX25_FRAME_BUF_LEN)
 		{
-			if (ctx->frm_len >= AX25_MIN_FRAME_LEN)
-			{
-				if (ctx->crc_in == AX25_CRC_CORRECT)
-				{
-					LOG_INFO("Frame found!\n");
-					ax25_decode(ctx);
-				}
-				else
-				{
-					LOG_INFO("CRC error, computed [%04X]\n", ctx->crc_in);
-				}
-			}
-			ctx->sync = true;
-			ctx->crc_in = CRC_CCITT_INIT_VAL;
-			ctx->frm_len = 0;
-			continue;
+			ctx->buf[ctx->frm_len++] = c;
 		}
-
-		if (!ctx->escape && c == HDLC_RESET)
-		{
-			LOG_INFO("HDLC reset\n");
-			ctx->sync = false;
-			continue;
-		}
-
-		if (!ctx->escape && c == AX25_ESC)
-		{
-			ctx->escape = true;
-			continue;
-		}
-
-		if (ctx->sync)
-		{
-			if (ctx->frm_len < CONFIG_AX25_FRAME_BUF_LEN)
-			{
-				ctx->buf[ctx->frm_len++] = c;
-				ctx->crc_in = updcrc_ccitt(c, ctx->crc_in);
-			}
-			else
-			{
-				LOG_INFO("Buffer overrun");
-				ctx->sync = false;
-			}
-		}
-		ctx->escape = false;
 	}
 
-	if (kfile_error(ctx->ch))
+	switch (kfile_error (ctx->ch))
 	{
-		LOG_ERR("Channel error [%04x]\n", kfile_error(ctx->ch));
-		kfile_clearerr(ctx->ch);
+	case HDLC_PKT_AVAILABLE:
+		if (ctx->frm_len >= AX25_MIN_FRAME_LEN)
+		{
+			ctx->frm_len -= 2;	  // drop the CRC octets
+			LOG_INFO ("Frame found!\n");
+			ax25_decode (ctx);
+		}
+		kfile_clearerr (ctx->ch);
+		ctx->frm_len = 0;
+		break;
+	case HDLC_ERROR_CRC:
+		if (ctx->frm_len >= AX25_MIN_FRAME_LEN)
+			LOG_INFO ("CRC error\n");
+		kfile_clearerr (ctx->ch);
+		ctx->frm_len = 0;
+		break;
+	case HDLC_ERROR_OVERRUN:
+		if (ctx->frm_len >= AX25_MIN_FRAME_LEN)
+			LOG_INFO ("Buffer overrun\n");
+		kfile_clearerr (ctx->ch);
+		ctx->frm_len = 0;
+		break;
+	case HDLC_ERROR_ABORT:
+		if (ctx->frm_len >= AX25_MIN_FRAME_LEN)
+			LOG_INFO ("Data abort\n");
+		kfile_clearerr (ctx->ch);
+		ctx->frm_len = 0;
+		break;
+//    default: // ignore other states
 	}
+
 }
 
-static void ax25_putchar(AX25Ctx *ctx, uint8_t c)
+/**
+ * Send an octet of data to AX25 layer
+ * This function writes bytes a an AX25 messages.
+ * This function may be blocking if there are no available chars and the KFile
+ * used in \a ctx to access the medium is configured in blocking mode.
+ *
+ * \param ctx AX25 context to operate on.
+ * \param c octet to send
+ */
+static void ax25_putchar (AX25Ctx * ctx, uint8_t c)
 {
-	if (c == HDLC_FLAG || c == HDLC_RESET
-		|| c == AX25_ESC)
-		kfile_putc(AX25_ESC, ctx->ch);
-	ctx->crc_out = updcrc_ccitt(c, ctx->crc_out);
-	kfile_putc(c, ctx->ch);
+	kfile_putc (c, ctx->ch);
 }
 
 static void ax25_sendCall(AX25Ctx *ctx, const AX25Call *addr, bool last)
@@ -244,13 +234,9 @@ static void ax25_sendCall(AX25Ctx *ctx, const AX25Call *addr, bool last)
  */
 void ax25_sendVia(AX25Ctx *ctx, const AX25Call *path, size_t path_len, const void *_buf, size_t len)
 {
-	const uint8_t *buf = (const uint8_t *)_buf;
-	ASSERT(path);
-	ASSERT(path_len >= 2);
-
-	ctx->crc_out = CRC_CCITT_INIT_VAL;
-	kfile_putc(HDLC_FLAG, ctx->ch);
-
+	const uint8_t *buf = (const uint8_t *) _buf;
+	ASSERT (path);
+	ASSERT (path_len >= 2);
 
 	/* Send call */
 	for (size_t i = 0; i < path_len; i++)
@@ -260,20 +246,8 @@ void ax25_sendVia(AX25Ctx *ctx, const AX25Call *path, size_t path_len, const voi
 	ax25_putchar(ctx, AX25_PID_NOLAYER3);
 
 	while (len--)
-		ax25_putchar(ctx, *buf++);
+		ax25_putchar (ctx, *buf++);
 
-	/*
-	 * According to AX25 protocol,
-	 * CRC is sent in reverse order!
-	 */
-	uint8_t crcl = (ctx->crc_out & 0xff) ^ 0xff;
-	uint8_t crch = (ctx->crc_out >> 8) ^ 0xff;
-	ax25_putchar(ctx, crcl);
-	ax25_putchar(ctx, crch);
-
-	ASSERT(ctx->crc_out == AX25_CRC_CORRECT);
-
-	kfile_putc(HDLC_FLAG, ctx->ch);
 }
 
 static void print_call(KFile *ch, const AX25Call *call)
@@ -309,7 +283,6 @@ void ax25_print(KFile *ch, const AX25Msg *msg)
 	kfile_printf(ch, ":%.*s\n", msg->len, msg->info);
 }
 
-
 /**
  * Init the AX25 protocol decoder.
  *
@@ -325,5 +298,4 @@ void ax25_init(AX25Ctx *ctx, KFile *channel, ax25_callback_t hook)
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->ch = channel;
 	ctx->hook = hook;
-	ctx->crc_in = ctx->crc_out = CRC_CCITT_INIT_VAL;
 }

@@ -62,6 +62,8 @@ SRC_LIST="
 	bertos/struct/kfile_mem.c
 	bertos/net/ax25.c
 	bertos/net/afsk.c
+	bertos/net/hdlc.c
+	bertos/net/kiss.c
 	bertos/net/nmeap/src/nmeap01.c
 	bertos/net/nmea.c
 	bertos/net/http.c

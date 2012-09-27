@@ -36,8 +36,13 @@
  */
 
 #include "ax25.h"
+#include "hdlc.h"
 
 #include <struct/kfile_mem.h>
+
+#define LOG_LEVEL  LOG_LVL_INFO
+#define LOG_FORMAT LOG_FMT_TERSE
+#include <cfg/log.h>
 
 #include <cfg/debug.h>
 #include <cfg/kfile_debug.h>
@@ -53,24 +58,25 @@ static KFileDebug dbg;
 	0x3D, 0x34, 0x36, 0x30, 0x33, 0x2E, 0x36, 0x33, \
 	0x4E, 0x2F, 0x30, 0x31, 0x34, 0x33, 0x31, 0x2E, \
 	0x32, 0x36, 0x45, 0x2D, 0x4F, 0x70, 0x2E, 0x20, \
-	0x41, 0x6E, 0x64, 0x72, 0x65, 0x6A
+	0x41, 0x6E, 0x64, 0x72, 0x65, 0x6A, 0x0f, 0xf8     /* include CRC as part of test data */
 
-uint8_t aprs_packet[] =
-{
-	HDLC_FLAG,
-	0x82, 0xA0, 0xA4, 0xA6, 0x40, 0x40, 0xE0, /* dst */
-	0xA6, 0x6A, 0x6E, 0x98, 0x9C, 0x40, 0x61, /* src */
-	0x03, /* ctrl */
-	0xF0, /* pid */
-	APRS_MSG, /* payload */
-	0x40, 0x65, /* CRC */
-	HDLC_FLAG,
+uint8_t aprs_packet[] = {
+	0x82, 0xA0, 0xA4, 0xA6, 0x40, 0x40, 0xE0,	/* dst */
+	0xA6, 0x6A, 0x6E, 0x98, 0x9C, 0x40, 0x61,	/* src */
+	0x03,								  /* ctrl */
+	0xF0,								  /* pid */
+	APRS_MSG,						  /* payload */
 };
 
 uint8_t buf[] = { APRS_MSG };
 KFileMem mem1;
 uint8_t aprs_packet_check[256];
 
+static int
+test_bodge (KFile * fd)
+{
+	return HDLC_PKT_AVAILABLE;
+}
 
 static void msg_callback(AX25Msg *msg)
 {
@@ -87,11 +93,12 @@ static void msg_callback(AX25Msg *msg)
 
 int ax25_testSetup(void)
 {
-	kdbg_init();
-	kfiledebug_init(&dbg);
-	kfilemem_init(&mem, aprs_packet, sizeof(aprs_packet));
-	kfilemem_init(&mem1, aprs_packet_check, sizeof(aprs_packet_check));
-	ax25_init(&ax25, &mem.fd, msg_callback);
+	kdbg_init ();
+	kfiledebug_init (&dbg);
+	kfilemem_init (&mem, aprs_packet, sizeof (aprs_packet));
+	kfilemem_init (&mem1, aprs_packet_check, sizeof (aprs_packet_check));
+	mem.fd.error = test_bodge;	  // kfilemem has no error hook!! Naughty naughty kfilemem
+	ax25_init (&ax25, &mem.fd, msg_callback);
 	return 0;
 }
 
