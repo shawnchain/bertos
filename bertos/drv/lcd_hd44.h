@@ -46,6 +46,7 @@
 
 #include "cfg/cfg_lcd_hd44.h"
 #include <cfg/compiler.h> /* For stdint types */
+#include "hw/hw_lcd_hd44.h"
 
 /**
  * \name Values for CONFIG_LCD_ROWS.
@@ -97,6 +98,16 @@
 
 /** Type for combined LCD cursor position (x,y). */
 typedef uint8_t lcdpos_t;
+
+INLINE void lcd_bl_on(void) 
+{
+	LCD_SET_BL;
+}
+
+INLINE void lcd_bl_off(void)
+{
+	LCD_CLR_BL;
+}
 
 void lcd_waitBusy(void);
 void lcd_moveTo(uint8_t addr);
