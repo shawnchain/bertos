@@ -26,8 +26,12 @@
  */
 
 #include "ow_ds2438.h"
-
+#include "cfg/cfg_1wire.h"
 #include "drv/ow_1wire.h"
+
+#define LOG_LEVEL   OW_LOG_LEVEL
+#define LOG_FORMAT  OW_LOG_FORMAT
+
 #include <cfg/log.h>
 
 #include <algo/crc8.h>
@@ -176,7 +180,7 @@ ow_ds2438_init(uint8_t id[], CTX2438_t * context, float shunt, uint16_t charge)
 		return false;
 
 	context->lastICA = ICAREF;
-	context->fullICA = (uint16_t) ((float) (charge) * (float) (2048.0 * shunt));  // beware of rounding errors here!!
+	context->fullICA = (uint16_t) ((float) charge * (2048.0 * shunt) + 0.5);  // beware of rounding errors here!!
 
 	return true;
 
@@ -249,7 +253,7 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 	t = page_data[6] << 8 | page_data[5];
 	// We get passed the shunt resistor value as we're the only ones who know what the algorithm is
 	// for calculating amps from the measured value.
-	context->Amps = (int16_t) ((float) t / (4096 * context->shunt) * 100);
+	context->Amps = (int16_t) ((float) (t / (4096 * context->shunt) * 100) + 0.5);
 
 	if (!ReadPage(id, 1, page_data))
 		return false;
@@ -270,7 +274,11 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 		{
 			// if discharging adjust ICA down by the efficiency of the charge cycle
 			if (ICA <= ICAREF - ICABAND)
-				context->fullICA -= (ICABAND * (1 - ((float) context->DCA / (float) context->CCA)));
+			{
+				t = context->lastICA;
+				context->fullICA -= ICABAND * (1.0 - ((float) context->DCA / context->CCA) + 0.5);
+				LOG_INFO("Adjusting local ICA (%u), to %u\r\n", t, context->lastICA);
+			}
 
 			context->lastICA = ICAREF;
 			ow_ds2438_setICA(id, ICAREF);
@@ -281,7 +289,7 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 		LOG_INFO("Bad ICA read of %u, expecting closer to %u\r\n", ICA, context->lastICA);
 	}
 
-	context->Charge = (uint16_t) ((float) (context->fullICA) / (float) (2048.0 * context->shunt));  // beware of rounding errors here!!
+	context->Charge = (uint16_t) ((float) context->fullICA /  (2048.0 * context->shunt) + 0.5);  // beware of rounding errors here!!
 
 	return true;
 }
@@ -347,7 +355,7 @@ ow_ds2438_calibrate(uint8_t id[], CTX2438_t * context, int16_t offset)
 		return false;
 
 	// offset comes to us in Amps * 100. Convert to 0.2441mV units and account for the 3 bit shift in the register
-	offset = offset * (float) (4096.0 * context->shunt * 8.0 / 100.0);
+	offset = offset * (float) (4096.0 * context->shunt * 8.0 / 100.0) + 0.5;
 
 	regval = (0 - regval) << 3;
 	regval += offset;
