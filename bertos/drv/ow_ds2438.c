@@ -275,9 +275,9 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 			// if discharging adjust ICA down by the efficiency of the charge cycle
 			if (ICA <= ICAREF - ICABAND)
 			{
-				t = context->lastICA;
+				t = context->fullICA;
 				context->fullICA -= ICABAND * (1.0 - ((float) context->DCA / context->CCA) + 0.5);
-				LOG_INFO("Adjusting local ICA (%u), to %u\r\n", t, context->lastICA);
+				LOG_INFO("Adjusting local ICA (%u), to %u\r\n", t, context->fullICA);
 			}
 
 			context->lastICA = ICAREF;
