@@ -76,12 +76,12 @@ typedef struct
 {
 	int16_t Temp;           ///< Temperature
 	uint16_t Volts;         ///< Voltage on Vdd or Vad pin
-	int16_t Amps;           ///< Current, depends on extrenal shunt to interpret the actual value
+	int16_t Amps;           ///< Current, depends on external shunt to interpret the actual value
 	uint16_t Charge;        ///< Charge value in amp-hrs
 	uint16_t CCA;           ///< Charging Current Accumulator
 	uint16_t DCA;           ///< Discharge Current Accumulator
 // internal variables
-	uint16_t fullICA;       ///< internal representation of value read expanded to 16 bits
+	uint32_t fullICA;       ///< internal representation of value read expanded to 32 bits - scaled by 100
 	uint8_t lastICA;        ///< last value read from the chip
 	float shunt;            ///< value of the shunt resistor used to measure current and charge
 } CTX2438_t;
