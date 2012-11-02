@@ -180,7 +180,7 @@ ow_ds2438_init(uint8_t id[], CTX2438_t * context, float shunt, uint16_t charge)
 		return false;
 
 	context->lastICA = ICAREF;
-	context->fullICA = (uint16_t) ((float) charge * (2048.0 * shunt) + 0.5);  // beware of rounding errors here!!
+	context->fullICA = charge * 2048.0 * shunt * 100;
 
 	return true;
 
@@ -231,16 +231,15 @@ int
 ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 {
 	uint8_t page_data[10];
-	int16_t t;
 	int32_t lt;
 	uint8_t ICA;
 
 	if (!ReadPage(id, 0, page_data))
 		return false;
 
-	t = (page_data[2] << 8) | page_data[1];
+	lt = (page_data[2] << 8) | page_data[1];
 	// Scale up by 100 to keep the following arithmetic as integer. Note we have to go to 32 bits here!
-	lt = t * 100L;
+	lt *= 100L;
 	// now for a bit of magic!
 	// There are 8 bits to 1 deg but the 38 has 12 bits but the 3 LSBs are not used 
 	// so shift by 8 to scale the value and get the resolution to the correct place
@@ -250,10 +249,10 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 	context->Volts = ((page_data[4] << 8) | page_data[3]);
 
 	// This is the voltage across the shunt resistor in units of 0.2441mV
-	t = page_data[6] << 8 | page_data[5];
+	lt = page_data[6] << 8 | page_data[5];
 	// We get passed the shunt resistor value as we're the only ones who know what the algorithm is
 	// for calculating amps from the measured value.
-	context->Amps = (int16_t) ((float) (t / (4096 * context->shunt) * 100) + 0.5);
+	context->Amps = lt * 100 / (4096 * context->shunt);
 
 	if (!ReadPage(id, 1, page_data))
 		return false;
@@ -266,18 +265,19 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 	context->DCA = ((page_data[7] << 8) | page_data[6]) / (64.0 * context->shunt);
 
 	// a miss-read would likely return more than a change of 1 so only allow 2 or less
+	// Note that the internal ICA value is scaled up by 100 so we don't loose accuracy on small adjustments due to charge inefficiency
 	if (abs(ICA - context->lastICA) <= 2)
 	{
-		context->fullICA += ICA - context->lastICA;
+		context->fullICA += (ICA - context->lastICA) * 100;
 		context->lastICA = ICA;
 		if ((ICA <= ICAREF - ICABAND) || (ICA >= ICAREF + ICABAND))
 		{
 			// if discharging adjust ICA down by the efficiency of the charge cycle
 			if (ICA <= ICAREF - ICABAND)
 			{
-				t = context->fullICA;
-				context->fullICA -= ICABAND * (1.0 - ((float) context->DCA / context->CCA) + 0.5);
-				LOG_INFO("Adjusting local ICA (%u), to %u\r\n", t, context->fullICA);
+				lt = context->fullICA;
+				context->fullICA -= ICABAND * 100 * (1.0 - ((float) context->DCA / context->CCA));
+				LOG_INFO("Adjusting local ICA (%ld), to %lu\r\n", lt, context->fullICA);
 			}
 
 			context->lastICA = ICAREF;
@@ -289,7 +289,7 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 		LOG_INFO("Bad ICA read of %u, expecting closer to %u\r\n", ICA, context->lastICA);
 	}
 
-	context->Charge = (uint16_t) ((float) context->fullICA /  (2048.0 * context->shunt) + 0.5);  // beware of rounding errors here!!
+	context->Charge = (context->fullICA /  (2048.0 * context->shunt * 100)) + 0.5;
 
 	return true;
 }
