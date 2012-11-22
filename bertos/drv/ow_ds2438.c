@@ -272,8 +272,9 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 		context->lastICA = ICA;
 		if ((ICA <= ICAREF - ICABAND) || (ICA >= ICAREF + ICABAND))
 		{
-			// if discharging adjust ICA down by the efficiency of the charge cycle
-			if (ICA <= ICAREF - ICABAND)
+			// if discharging and charge/discharge ratio < 1 then adjust ICA down by the efficiency of the charge cycle
+			// this extra check is required because on a new system the recorded values of DCA and CCA are of the same magnitude as a normal discharge cycle
+			if ((ICA <= ICAREF - ICABAND) && (context->DCA < context->CCA))
 			{
 				lt = context->fullICA;
 				context->fullICA -= ICABAND * 100 * (1.0 - ((float) context->DCA / context->CCA));
