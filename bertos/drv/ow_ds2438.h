@@ -84,6 +84,7 @@ typedef struct
 	uint32_t fullICA;       ///< internal representation of value read expanded to 32 bits - scaled by 100
 	uint8_t lastICA;        ///< last value read from the chip
 	float shunt;            ///< value of the shunt resistor used to measure current and charge
+	uint32_t etm;           ///< elapsed timer meter
 } CTX2438_t;
 
 int ow_ds2438_init(uint8_t id[], CTX2438_t * context, float shunt, uint16_t charge);
@@ -92,6 +93,7 @@ void ow_ds2438_doconvert(uint8_t id[]);
 int ow_ds2438_readall(uint8_t id[], CTX2438_t * context);
 int ow_ds2438_calibrate(uint8_t id[], CTX2438_t * context, int16_t offset);
 int ow_ds2438_setCCADCA(uint8_t id[], CTX2438_t * context);
+int ow_ds2438_setETM(uint8_t id[], uint32_t etm);
 	/** \} */ //defgroup battery_api
 
 /** \} */ //addtogroup ow_driver
