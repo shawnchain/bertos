@@ -257,6 +257,12 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 	if (!ReadPage(id, 1, page_data))
 		return false;
 
+	// elapsed time meter register. 
+	context->etm =                     page_data[3];
+	context->etm = context->etm << 8 | page_data[2];
+	context->etm = context->etm << 8 | page_data[1];
+	context->etm = context->etm << 8 | page_data[0];
+
 	ICA = page_data[4];
 
 	if (!ReadPage(id, 7, page_data))
@@ -389,6 +395,37 @@ ow_ds2438_setICA(uint8_t id[], uint8_t value)
 
 	// slip in the new value
 	page_data[4] = value;
+
+	// Write the page back
+	if (!WritePage(id, 1, page_data, 8))
+		return false;
+
+	return true;
+
+}
+
+
+/**
+ * Sets the ETM register
+ * \param id       the serial number for the part that the read is to be done on.
+ * \param value    what to write to the ETM register
+ *
+ * \return true if all OK else return false
+ */
+int
+ow_ds2438_setETM(uint8_t id[], uint32_t value)
+{
+	uint8_t page_data[10];
+
+	// Get page 1
+	if (!ReadPage(id, 1, page_data))
+		return false;
+
+	// slip in the new value
+	page_data[0] = value & 0xff;
+	page_data[1] = value >> 8;
+	page_data[2] = value >> 16;
+	page_data[3] = value >> 24;
 
 	// Write the page back
 	if (!WritePage(id, 1, page_data, 8))
