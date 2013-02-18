@@ -49,7 +49,7 @@
 #include <cfg/debug.h>
 #include <cfg/log.h>
 
-#include <net/afsk.h>
+#include <net/hdlc.h>
 
 #include <drv/ser.h>
 #include <drv/timer.h>
@@ -144,7 +144,6 @@ static void kiss_decode_command (KissCtx * k, uint8_t b)
 	{
 	case TXDELAY:
 		k->params.txdelay = b;
-		afsk_head (k->modem, b);
 		break;
 	case PERSIST:
 		k->params.persist = b;
@@ -154,7 +153,6 @@ static void kiss_decode_command (KissCtx * k, uint8_t b)
 		break;
 	case TXTAIL:
 		k->params.txtail = b;
-		afsk_tail (k->modem, b);
 		break;
 	case DUPLEX:
 		k->params.duplex = b;
@@ -442,6 +440,14 @@ void kiss_poll_serial (KissCtx * k)
 }
 
 
+void kiss_poll_params(KissCtx * k, uint8_t *head, uint8_t *tail)
+{
+	*head = k->params.txdelay;
+	*tail = k->params.txtail;
+
+
+}
+
 
 /**
  * Initialise the KISS context
@@ -466,8 +472,5 @@ void kiss_init (KissCtx * k, KFile * channel, KFile * serial)
 
 	// get KISS parameters from EEPROM
 	load_params (k);
-	// pass head and tail timing values to modem
-	afsk_head (k->modem, k->params.txdelay);
-	afsk_tail (k->modem, k->params.txtail);
 
 }
