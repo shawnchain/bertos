@@ -47,6 +47,10 @@
 #include "hw/hw_kiss.h"
 
 #include <cfg/debug.h>
+
+#define LOG_LEVEL   KISS_LOG_LEVEL
+#define LOG_FORMAT  KISS_LOG_FORMAT
+
 #include <cfg/log.h>
 
 #include <net/hdlc.h>
@@ -102,12 +106,12 @@ static void load_params (KissCtx * k)
 		 k->params.txdelay + k->params.persist + k->params.slot + k->params.txtail + k->params.duplex + k->params.hware)
 	{
 		// load sensible defaults if backing store has a bad checksum
-		k->params.txdelay = 50;
-		k->params.persist = 64;
-		k->params.slot = 10;
-		k->params.txtail = 3;
-		k->params.duplex = 0;
-		k->params.hware = 0;
+		k->params.txdelay =CONFIG_KISS_DEFAULT_TXDELAY0;
+		k->params.persist = CONFIG_KISS_DEFAULT_PERSIST;
+		k->params.slot = CONFIG_KISS_DEFAULT_SLOT;
+		k->params.txtail = CONFIG_KISS_DEFAULT_TXTAIL;
+		k->params.duplex = CONFIG_KISS_DEFAULT_DUPLEX;
+		k->params.hware = CONFIG_KISS_DEFAULT_HWARE;
 	}
 }
 
@@ -300,7 +304,7 @@ void kiss_poll_modem (KissCtx * k)
 	switch (kfile_error (k->modem))
 	{
 	case HDLC_PKT_AVAILABLE:
-		if (k->rx_pos >= KISS_MIN_FRAME_LEN)
+		if (k->rx_pos >= CONFIG_KISS_MIN_FRAME_LEN)
 		{
 			k->rx_pos -= 2;            // drop the CRC octets
 			LOG_INFO ("Frame found!\n");
@@ -315,13 +319,13 @@ void kiss_poll_modem (KissCtx * k)
 		k->rx_pos = 0;
 		break;
 	case HDLC_ERROR_OVERRUN:
-		if (k->rx_pos >= KISS_MIN_FRAME_LEN)
+		if (k->rx_pos >= CONFIG_KISS_MIN_FRAME_LEN)
 			LOG_INFO ("Buffer overrun\n");
 		kfile_clearerr (k->modem);
 		k->rx_pos = 0;
 		break;
 	case HDLC_ERROR_ABORT:
-		if (k->rx_pos >= KISS_MIN_FRAME_LEN)
+		if (k->rx_pos >= CONFIG_KISS_MIN_FRAME_LEN)
 			LOG_INFO ("Data abort\n");
 		kfile_clearerr (k->modem);
 		k->rx_pos = 0;
@@ -405,7 +409,7 @@ void kiss_poll_serial (KissCtx * k)
 			}
 			else if (b == FEND)
 			{
-				if (k->tx_pos >= KISS_MIN_FRAME_LEN)
+				if (k->tx_pos >= CONFIG_KISS_MIN_FRAME_LEN)
 				{
 					k->state = WAIT_FOR_TRANSMIT;
 				}

@@ -66,8 +66,58 @@
  * KISS minimum frame buffer length.
  *
  * $WIZ$ type = "int"
- * $WIZ$ min = 3
+ * $WIZ$ min = 4
  */
-#define KISS_MIN_FRAME_LEN 10
+#define CONFIG_KISS_MIN_FRAME_LEN 10
+
+/**
+ * KISS default txdelay in 10mS units
+ *
+ * $WIZ$ type = "int"
+ * $WIZ$ min = 5
+ */
+#define CONFIG_KISS_DEFAULT_TXDELAY 5
+
+/**
+ * KISS default persist
+ *
+ * $WIZ$ type = "int"
+ * $WIZ$ min = 1
+ */
+#define CONFIG_KISS_DEFAULT_PERSIST 128
+
+/**
+ * KISS default slot time  in 10mS units
+ *
+ * $WIZ$ type = "int"
+ * $WIZ$ min = 5
+ */
+#define CONFIG_KISS_DEFAULT_SLOT 2
+
+/**
+ * KISS default txtail in 10mS units
+ *
+ * $WIZ$ type = "int"
+ * $WIZ$ min = 0
+ */
+#define CONFIG_KISS_DEFAULT_TXTAIL 2
+
+/**
+ * KISS default duplex.
+ *
+ * $WIZ$ type = "int"
+ * $WIZ$ min = 0
+ */
+#define CONFIG_KISS_DEFAULT_DUPLEX 0
+
+/**
+ * KISS default hware
+ *
+ * $WIZ$ type = "int"
+ * $WIZ$ min = 0
+ */
+#define CONFIG_KISS_DEFAULT_HWARE 0
+
+
 
 #endif /* CFG_KISS_H */
