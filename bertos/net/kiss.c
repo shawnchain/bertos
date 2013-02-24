@@ -99,14 +99,15 @@
  */
 static void load_params (KissCtx * k)
 {
-
+	uint8_t sum;
 	KISS_EEPROM_LOAD ();
 
-	if (~(k->params.chksum) !=
-		 k->params.txdelay + k->params.persist + k->params.slot + k->params.txtail + k->params.duplex + k->params.hware)
+	sum = k->params.txdelay + k->params.persist + k->params.slot + k->params.txtail + k->params.duplex + k->params.hware;
+	if (k->params.chksum != sum)
 	{
+		LOG_WARN ("Bad EPROM Checksum - loading defaults\n");
 		// load sensible defaults if backing store has a bad checksum
-		k->params.txdelay =CONFIG_KISS_DEFAULT_TXDELAY0;
+		k->params.txdelay =CONFIG_KISS_DEFAULT_TXDELAY;
 		k->params.persist = CONFIG_KISS_DEFAULT_PERSIST;
 		k->params.slot = CONFIG_KISS_DEFAULT_SLOT;
 		k->params.txtail = CONFIG_KISS_DEFAULT_TXTAIL;
@@ -126,7 +127,7 @@ static void load_params (KissCtx * k)
 static void save_params (KissCtx * k)
 {
 	k->params.chksum =
-		~(k->params.txdelay + k->params.persist + k->params.slot + k->params.txtail + k->params.duplex + k->params.hware);
+		(k->params.txdelay + k->params.persist + k->params.slot + k->params.txtail + k->params.duplex + k->params.hware);
 
 	KISS_EEPROM_SAVE ();
 
@@ -342,13 +343,15 @@ void kiss_poll_modem (KissCtx * k)
  * TX to radio if appropriate
  *
  * \param k kiss context
+ * \return true if param command processed
  *
  */
-void kiss_poll_serial (KissCtx * k)
+bool kiss_poll_serial (KissCtx * k)
 {
 
 	int c;
 	uint8_t b;
+	bool ret = false;
 
 	while ((c = kfile_getc (k->serial)) != EOF)
 	{
@@ -388,6 +391,7 @@ void kiss_poll_serial (KissCtx * k)
 		case WAIT_FOR_PARAMETER:
 			kiss_decode_command (k, b);
 			k->state = WAIT_FOR_FEND;
+			ret = true;
 			break;
 		case WAIT_FOR_TRANSPOSE:
 			switch (b)				  // the default is to put whatever character we got in the buffer
@@ -441,6 +445,8 @@ void kiss_poll_serial (KissCtx * k)
 	// no serial input in last 2 secs?
 	if (timer_clock () - k->last_tick > ms_to_ticks (2000L))
 		k->tx_pos = 0;
+	
+	return ret;
 }
 
 
