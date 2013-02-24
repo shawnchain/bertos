@@ -128,7 +128,6 @@ static size_t fake_write(UNUSED_ARG(KFile, *fd), const void *_buf, size_t size)
 int
 main (void)
 {
-	uint8_t head, tail;
 
 	IRQ_ENABLE;
 	kdbg_init ();
@@ -148,6 +147,7 @@ main (void)
 	// poll the fake serial port to parse the KISS data
 	if (kiss_poll_serial (&kiss))
 	{
+		uint8_t head, tail;
 		kputs("Setting params\n");
 		// pass head and tail timing values to modem
 		kiss_poll_params(&kiss, &head, &tail);
@@ -163,7 +163,7 @@ main (void)
 		kputs("Txing\n");
 		kiss_poll_serial (&kiss);
 		// delay between packets
-		timer_delay(10);
+		timer_delay(40);
 		kfilemem_init (&TXdata, kiss_packet_kiss2, sizeof (kiss_packet_kiss2));
 		// and again
 		kiss_poll_serial (&kiss);
