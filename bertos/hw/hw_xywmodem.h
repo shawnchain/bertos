@@ -28,7 +28,16 @@
 #ifndef HW_XYWMODEM_H
 #define HW_XYWMODEM_H
 
+/*
+Default connections are as follows:
+TxData  on Port B bit 0 (arduino pin D8)
+TxClock on Port B bit 1 (arduino pin D9)
+PTT     on Port B bit 2 (arduino pin D10)
 
+RxData  on Port C bit 0 (arduino pin AIN0)
+RxClock on Port C bit 1 (arduino pin AIN1)
+DCD     on Port C bit 2 (arduino pin AIN2)
+*/
 
 
 #endif

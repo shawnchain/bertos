@@ -35,6 +35,7 @@
 #define NET_XYW_H
 
 #include "cfg/cfg_xywmodem.h"
+#include "hw/hw_xywmodem.h"
 
 #include <net/hdlc.h>
 
