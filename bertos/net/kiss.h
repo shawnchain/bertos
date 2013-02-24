@@ -84,7 +84,7 @@ typedef struct KissCtx
 
 
 void kiss_init (KissCtx * k, KFile * channel, KFile * serial);
-void kiss_poll_serial (KissCtx * k);
+bool kiss_poll_serial (KissCtx * k);
 void kiss_poll_modem (KissCtx * k);
 void kiss_poll_params(KissCtx * k, uint8_t *head, uint8_t *tail);
 
