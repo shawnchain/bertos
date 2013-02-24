@@ -39,7 +39,7 @@
  *
  * $WIZ$ module_name = "kiss"
  * $WIZ$ module_configuration = "bertos/cfg/cfg_kiss.h"
- * $WIZ$ module_depends = "timer", "kfile"
+ * $WIZ$ module_depends = "timer", "kfile", "hdlc"
  * $WIZ$ module_hw = "bertos/hw/hw_kiss.h"
  */
 
