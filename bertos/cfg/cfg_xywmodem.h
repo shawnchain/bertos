@@ -75,7 +75,7 @@
  * $WIZ$ type = "int"
  * $WIZ$ min = 1
  */
-#define CONFIG_XYW_PREAMBLE_LEN 100UL
+#define CONFIG_XYW_PREAMBLE_LEN 20UL
 
 
 /**
@@ -83,7 +83,7 @@
  * $WIZ$ type = "int"
  * $WIZ$ min = 1
  */
-#define CONFIG_XYW_TRAILER_LEN 10UL
+#define CONFIG_XYW_TRAILER_LEN 3UL
 
 /**
  * Bitrate of generated TX clock and data
