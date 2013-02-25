@@ -44,6 +44,12 @@
 
 static XYW *xyw;
 
+
+/**
+ * Transmit interrupt entry point from hardware layer
+ * Interfaces to hdlc layer to get next bit to transmit, stops transmitter if no more data
+ */
+
 void xyw_tx_int(void)
 {
 	int16_t this_bit;
@@ -67,12 +73,15 @@ void xyw_tx_int(void)
 
 }
 
+/**
+ * Receive interrupt entry point from hardware layer
+ * \param this_bit the received bit from an I/O line
+ */
 
 void xyw_rx_int(uint8_t this_bit)
 {
 	xyw->status = hdlc_decode (&xyw->rx_hdlc, this_bit, &xyw->rx_fifo);
 }
-
 
 static void xyw_txStart(XYW *xyw)
 {
@@ -83,8 +92,6 @@ static void xyw_txStart(XYW *xyw)
 		XYW_TX_START;
 	}
 }
-
-
 
 static size_t xyw_read(KFile *fd, void *_buf, size_t size)
 {
