@@ -318,7 +318,8 @@ int hdlc_encode (Hdlc * hdlc, FIFOBuffer * fifo)
  * We convert milli seconds to number of flags
  *
  * \param hdlc HDLC context.
- * \param txhead preamble
+ * \param head preamble
+ * \param bitrate bit rate to allow conversion from number of mS to number of flags
  *
  */
 void hdlc_head (Hdlc * hdlc, uint8_t head, uint16_t bitrate)
@@ -332,7 +333,8 @@ void hdlc_head (Hdlc * hdlc, uint8_t head, uint16_t bitrate)
  * We convert milli seconds to number of flags
  *
  * \param hdlc HDLC context.
- * \param txtail postamble
+ * \param tail postamble
+ * \param bitrate bit rate to allow conversion from number of mS to number of flags
  *
  */
 void hdlc_tail (Hdlc * hdlc, uint8_t tail, uint16_t bitrate)

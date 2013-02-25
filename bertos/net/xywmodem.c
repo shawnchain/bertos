@@ -195,7 +195,7 @@ void xyw_tail (KFile * fd, int c)
 
 /**
  * Initialize an g4xyw 9600 modem.
- * \param af xyw context to operate on.
+ * \param _xyw XYW context to operate on.
  * \param bps speed to operate at
  */
 
