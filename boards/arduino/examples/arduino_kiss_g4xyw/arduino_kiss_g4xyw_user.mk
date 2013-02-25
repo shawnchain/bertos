@@ -10,6 +10,7 @@ arduino_kiss_g4xyw_PROGRAMMER_PORT = none
 # Files included by the user.
 arduino_kiss_g4xyw_USER_CSRC = \
 	$(arduino_kiss_g4xyw_SRC_PATH)/main.c \
+	$(arduino_kiss_g4xyw_SRC_PATH)/hw/hw_xywmodem.c \
 	#
 
 # Files included by the user.

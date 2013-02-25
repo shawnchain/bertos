@@ -34,12 +34,28 @@
 #include "cfg/cfg_arch.h"
 
 
+void hw_xyw_init(int bps);
 
-#define XYW_HW_INIT(bps)     do { (void)bps; /* Implement me */ } while (0)
-#define XYW_TX_START         do { /* Implement me */ } while (0)
-#define XYW_TX_DATA(data)    do { (void)data; /* Implement me */ } while (0)
-#define XYW_TX_STOP          do { /* Implement me */ } while (0)
 
+
+
+
+#define XYW_HW_INIT(bps)     hw_xyw_init(bps)
+#define XYW_TX_START         do { DDRB |= BV(1); PORTB |= BV(2); TIMSK1 |= BV(OCIE1A); } while (0)
+#define XYW_TX_DATA(data)    do { if (data) PORTB |= BV(0); else PORTB &= ~BV(0); } while (0)
+#define XYW_TX_STOP          do { DDRB &= ~BV(1); PORTB &= ~BV(2); TIMSK1 &= ~BV(OCIE1A); } while (0)
+
+
+/*
+Default connections are as follows:
+TxData  on Port B bit 0 (arduino pin D8)
+TxClock on Port B bit 1 (arduino pin D9)
+PTT     on Port B bit 2 (arduino pin D10)
+
+RxData  on Port C bit 0 (arduino pin AIN0)
+RxClock on Port C bit 1 (arduino pin AIN1)
+DCD     on Port C bit 2 (arduino pin AIN2)
+*/
 
 
 #endif

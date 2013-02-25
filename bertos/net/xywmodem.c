@@ -28,6 +28,7 @@
  */
 
 #include "xywmodem.h"
+#include <hw/hw_xywmodem.h>
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -43,16 +44,9 @@
 
 static XYW *xyw;
 
-// timer 1 compare for TX output
-ISR(TIMER1_COMPA_vect)
+void xyw_tx_int(void)
 {
-	int8_t this_bit;
-
-	// we are running at double rate so that the clock output pin toggles.
-	// only output data on the falling edge of the clock
-	if (PINB & BV(1))
-		return;
-
+	int16_t this_bit;
 	/* get a new TX bit. */
 	/* note that hdlc module does all the NRZI as well as bit stuffing etc */
 	/* if run out of data then clear sending flag, drop PTT, stop TX clock, stop interrupts */
@@ -61,40 +55,21 @@ ISR(TIMER1_COMPA_vect)
 	{
 	case -1:
 		xyw->sending = false;
-		// stop TX clock on PWM B1 pin
-		DDRB &= ~BV(1);
-		// drop PTT
-		PORTB &= ~BV(2);
-		// stop TX interrupt
-		TIMSK1 &= ~BV(OCIE1A);
+		// stop TX clock, drop PTT, stop TX interrupt
+		XYW_TX_STOP;
 		return;
 	case 0:
 	case 1:
 		// output bit
-		if (this_bit)
-			PORTB |= BV(0);
-		else
-			PORTB &= ~BV(0);
+		XYW_TX_DATA (this_bit);
 		break;
 	}
 
 }
 
 
-// pin change interrupt for RX clock (on PC1, PCINT9)
-ISR(PCINT1_vect)
+void xyw_rx_int(uint8_t this_bit)
 {
-	uint8_t this_bit;
-
-	// no data if no DCD!
-	if ((PINC & BV(2)) == 0)
-		return;
-
-	// only look at RX data on rising edge
-	if ((PINC & BV(1)) == 0)
-		return;
-	// read in a bit, pass up to HDLC layer and put in the fifo ready for KISS layer to pick up
-	this_bit = PINC & BV(0) ? 1 : 0;
 	xyw->status = hdlc_decode (&xyw->rx_hdlc, this_bit, &xyw->rx_fifo);
 }
 
@@ -104,12 +79,8 @@ static void xyw_txStart(XYW *xyw)
 	if (!xyw->sending)
 	{
 		xyw->sending = true;
-		// output TX clock on PWM B1 pin
-		DDRB |= BV(1);
-		// raise PTT line
-		PORTB |= BV(2);
-		// enable 9600bps interrupt to send data
-		TIMSK1 |= BV(OCIE1A);
+		// output TX clock, raise PTT line,  enable interrupt to send data
+		XYW_TX_START;
 	}
 }
 
@@ -229,34 +200,7 @@ void xyw_init(XYW *_xyw, int bps)
 	#endif
 	memset(xyw, 0, sizeof(*xyw));
 
-	// set up timer 1 for 9600 and get ready to start it for transmit
-	/* Set X1 prescaler to clk (16 MHz), CTC, top = OCR1A, toggle on compare */
-	TCCR1A = BV(COM1A0);
-	TCCR1B = BV(WGM12) | BV(CS10);
-	// Set low prescaler to obtain a high res freq with toggling output
-	OCR1A = (CPU_FREQ / bps / 2) - 1;
-	// TX Data is on port B 0
-	DDRB |= BV(0);
-	// output TX clock on PWM B1 pin
-	DDRB |= BV(1);
-	// PTT is on port B 2
-	DDRB |= BV(2);
-	// Enable timer interrupt: Timer/Counter1 Output Compare
-	// only do this when we have data to transmit
-//	TIMSK1 |= BV(OCIE1A);
-
-
-	// enable pin change interrupt for receive
-	// note that this triggers on both edges
-	PCICR = BV(PCIE1);
-	PCMSK1 |= BV(PCINT9);
-	// Use PC0 for the RX data
-	DDRC &= ~BV(0);
-	// PC1 (PCint9) for the RX clock
-	DDRC &= ~BV(1);
-	// PC2 for DCD (if used)
-	DDRC &= ~BV(2);
-
+	XYW_HW_INIT(bps);
 
 	fifo_init(&xyw->rx_fifo, xyw->rx_buf, sizeof(xyw->rx_buf));
 	fifo_init(&xyw->tx_fifo, xyw->tx_buf, sizeof(xyw->tx_buf));

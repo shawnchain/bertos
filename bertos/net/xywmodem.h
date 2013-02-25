@@ -92,11 +92,11 @@ INLINE XYW *XYW_CAST(KFile *fd)
 
 void xyw_head (KFile * fd, int c);
 void xyw_tail (KFile * fd, int c);
+void xyw_tx_int(void);
+void xyw_rx_int(uint8_t this_bit);
 
 void xyw_init (XYW * _xyw, int bps);
 
-#define HEAD   1
-#define TAIL   4
 
 
 #endif /* NET_XYW_H */
