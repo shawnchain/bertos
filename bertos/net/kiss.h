@@ -30,6 +30,10 @@
  *
  * -->
  *
+ * \defgroup kiss_module KISS protocol driver
+ * \ingroup net
+ * \{
+ *
  * \author Robin Gilks <g8ecj@gilks.org>
  *
  * \brief KISS module
@@ -43,6 +47,8 @@
  * $WIZ$ module_hw = "bertos/hw/hw_kiss.h"
  */
 
+#ifndef NET_KISS_H
+#define NET_KISS_H
 
 #include "cfg/cfg_kiss.h"
 
@@ -87,4 +93,8 @@ void kiss_init (KissCtx * k, KFile * channel, KFile * serial);
 bool kiss_poll_serial (KissCtx * k);
 void kiss_poll_modem (KissCtx * k);
 void kiss_poll_params(KissCtx * k, uint8_t *head, uint8_t *tail);
+
+/** \} */ //defgroup kiss_module
+
+#endif
 

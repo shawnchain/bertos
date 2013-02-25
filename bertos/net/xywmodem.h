@@ -21,6 +21,10 @@
  *
  * -->
  *
+ * \defgroup xywmodem G4XYW modem module.
+ * \ingroup net
+ * \{
+ *
  * \brief External modem.
  *
  * \author Robin Gilks <g8ecj@gilks.org>
@@ -99,6 +103,7 @@ void xyw_rx_int(uint8_t this_bit);
 
 void xyw_init (XYW * _xyw, int bps);
 
+/** \} */ //defgroup xywmodem
 
 
 #endif /* NET_XYW_H */
