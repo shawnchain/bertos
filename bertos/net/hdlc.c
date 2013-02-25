@@ -315,27 +315,29 @@ int hdlc_encode (Hdlc * hdlc, FIFOBuffer * fifo)
 /**
  * Sets head timing by defining the number of flags to output
  * Has to be done here as this is the only module that knows about flags!!
+ * We convert milli seconds to number of flags
  *
  * \param hdlc HDLC context.
  * \param txhead preamble
  *
  */
-void hdlc_head (Hdlc * hdlc, uint8_t txhead)
+void hdlc_head (Hdlc * hdlc, uint8_t head, uint16_t bitrate)
 {
-	hdlc->TXhead = txhead;
+	hdlc->TXhead = DIV_ROUND (head * bitrate, 8000UL);
 }
 
 /**
  * Sets tail timing by defining the number of flags to output
  * Has to be done here as this is the only module that knows about flags!!
+ * We convert milli seconds to number of flags
  *
  * \param hdlc HDLC context.
  * \param txtail postamble
  *
  */
-void hdlc_tail (Hdlc * hdlc, uint8_t txtail)
+void hdlc_tail (Hdlc * hdlc, uint8_t tail, uint16_t bitrate)
 {
-	hdlc->TXtail = txtail;
+	hdlc->TXtail = DIV_ROUND (tail * bitrate, 8000UL);
 }
 
 

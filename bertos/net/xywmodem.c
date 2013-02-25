@@ -208,8 +208,8 @@ void xyw_init(XYW *_xyw, int bps)
 	hdlc_init (&xyw->rx_hdlc);
 	hdlc_init (&xyw->tx_hdlc);
 	// set initial defaults for timings
-	hdlc_head (&xyw->tx_hdlc, DIV_ROUND (CONFIG_XYW_PREAMBLE_LEN * CONFIG_XYW_BITRATE, 8000));
-	hdlc_tail (&xyw->tx_hdlc, DIV_ROUND (CONFIG_XYW_TRAILER_LEN * CONFIG_XYW_BITRATE, 8000));
+	hdlc_head (&xyw->tx_hdlc, CONFIG_XYW_PREAMBLE_LEN, bps);
+	hdlc_tail (&xyw->tx_hdlc, CONFIG_XYW_TRAILER_LEN, bps);
 	DB (xyw->fd._type = KFT_XYW);
 	xyw->fd.write = xyw_write;
 	xyw->fd.read = xyw_read;

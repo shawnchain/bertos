@@ -411,8 +411,8 @@ void afsk_init(Afsk *af, int adc_ch, int dac_ch)
 	hdlc_init (&af->rx_hdlc);
 	hdlc_init (&af->tx_hdlc);
 	// set initial defaults for timings
-	hdlc_head (&af->tx_hdlc, DIV_ROUND (CONFIG_AFSK_PREAMBLE_LEN * BITRATE, 8000));
-	hdlc_tail (&af->tx_hdlc, DIV_ROUND (CONFIG_AFSK_TRAILER_LEN * BITRATE, 8000));
+	hdlc_head (&af->tx_hdlc, CONFIG_AFSK_PREAMBLE_LEN, BITRATE);
+	hdlc_tail (&af->tx_hdlc, CONFIG_AFSK_TRAILER_LEN, BITRATE);
 	DB (af->fd._type = KFT_AFSK);
 	af->fd.write = afsk_write;
 	af->fd.read = afsk_read;
