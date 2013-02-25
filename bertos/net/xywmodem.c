@@ -168,7 +168,7 @@ static void xyw_clearerr (KFile * fd)
 void xyw_head (KFile * fd, int c)
 {
 	XYW *xyw = XYW_CAST (fd);
-	hdlc_head (&xyw->tx_hdlc, c);
+	hdlc_head (&xyw->tx_hdlc, c, xyw->speed);
 }
 
 /**
@@ -182,7 +182,7 @@ void xyw_head (KFile * fd, int c)
 void xyw_tail (KFile * fd, int c)
 {
 	XYW *xyw = XYW_CAST (fd);
-	hdlc_tail (&xyw->tx_hdlc, c);
+	hdlc_tail (&xyw->tx_hdlc, c, xyw->speed);
 }
 
 
@@ -216,4 +216,5 @@ void xyw_init(XYW *_xyw, int bps)
 	xyw->fd.flush = xyw_flush;
 	xyw->fd.error = xyw_error;
 	xyw->fd.clearerr = xyw_clearerr;
+	xyw->speed = bps;
 }

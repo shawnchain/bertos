@@ -80,6 +80,8 @@ typedef struct XYW
 	Hdlc tx_hdlc;
 	Hdlc rx_hdlc;
 
+	/* keep a note of what speed we were started off at */
+	uint16_t speed;
 } XYW;
 
 #define KFT_XYW MAKE_ID('X', '9', 'K', '6')
