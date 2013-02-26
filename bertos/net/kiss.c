@@ -47,9 +47,13 @@
 #include "hw/hw_kiss.h"
 
 #include <cfg/debug.h>
+
+#define LOG_LEVEL   KISS_LOG_LEVEL
+#define LOG_FORMAT  KISS_LOG_FORMAT
+
 #include <cfg/log.h>
 
-#include <net/afsk.h>
+#include <net/hdlc.h>
 
 #include <drv/ser.h>
 #include <drv/timer.h>
@@ -95,19 +99,20 @@
  */
 static void load_params (KissCtx * k)
 {
-
+	uint8_t sum;
 	KISS_EEPROM_LOAD ();
 
-	if (~(k->params.chksum) !=
-		 k->params.txdelay + k->params.persist + k->params.slot + k->params.txtail + k->params.duplex + k->params.hware)
+	sum = k->params.txdelay + k->params.persist + k->params.slot + k->params.txtail + k->params.duplex + k->params.hware;
+	if (k->params.chksum != sum)
 	{
+		LOG_WARN ("Bad EPROM Checksum - loading defaults\n");
 		// load sensible defaults if backing store has a bad checksum
-		k->params.txdelay = 50;
-		k->params.persist = 64;
-		k->params.slot = 10;
-		k->params.txtail = 3;
-		k->params.duplex = 0;
-		k->params.hware = 0;
+		k->params.txdelay =CONFIG_KISS_DEFAULT_TXDELAY;
+		k->params.persist = CONFIG_KISS_DEFAULT_PERSIST;
+		k->params.slot = CONFIG_KISS_DEFAULT_SLOT;
+		k->params.txtail = CONFIG_KISS_DEFAULT_TXTAIL;
+		k->params.duplex = CONFIG_KISS_DEFAULT_DUPLEX;
+		k->params.hware = CONFIG_KISS_DEFAULT_HWARE;
 	}
 }
 
@@ -122,7 +127,7 @@ static void load_params (KissCtx * k)
 static void save_params (KissCtx * k)
 {
 	k->params.chksum =
-		~(k->params.txdelay + k->params.persist + k->params.slot + k->params.txtail + k->params.duplex + k->params.hware);
+		(k->params.txdelay + k->params.persist + k->params.slot + k->params.txtail + k->params.duplex + k->params.hware);
 
 	KISS_EEPROM_SAVE ();
 
@@ -144,7 +149,6 @@ static void kiss_decode_command (KissCtx * k, uint8_t b)
 	{
 	case TXDELAY:
 		k->params.txdelay = b;
-		afsk_head (k->modem, b);
 		break;
 	case PERSIST:
 		k->params.persist = b;
@@ -154,7 +158,6 @@ static void kiss_decode_command (KissCtx * k, uint8_t b)
 		break;
 	case TXTAIL:
 		k->params.txtail = b;
-		afsk_tail (k->modem, b);
 		break;
 	case DUPLEX:
 		k->params.duplex = b;
@@ -302,7 +305,7 @@ void kiss_poll_modem (KissCtx * k)
 	switch (kfile_error (k->modem))
 	{
 	case HDLC_PKT_AVAILABLE:
-		if (k->rx_pos >= KISS_MIN_FRAME_LEN)
+		if (k->rx_pos >= CONFIG_KISS_MIN_FRAME_LEN)
 		{
 			k->rx_pos -= 2;            // drop the CRC octets
 			LOG_INFO ("Frame found!\n");
@@ -317,13 +320,13 @@ void kiss_poll_modem (KissCtx * k)
 		k->rx_pos = 0;
 		break;
 	case HDLC_ERROR_OVERRUN:
-		if (k->rx_pos >= KISS_MIN_FRAME_LEN)
+		if (k->rx_pos >= CONFIG_KISS_MIN_FRAME_LEN)
 			LOG_INFO ("Buffer overrun\n");
 		kfile_clearerr (k->modem);
 		k->rx_pos = 0;
 		break;
 	case HDLC_ERROR_ABORT:
-		if (k->rx_pos >= KISS_MIN_FRAME_LEN)
+		if (k->rx_pos >= CONFIG_KISS_MIN_FRAME_LEN)
 			LOG_INFO ("Data abort\n");
 		kfile_clearerr (k->modem);
 		k->rx_pos = 0;
@@ -340,13 +343,15 @@ void kiss_poll_modem (KissCtx * k)
  * TX to radio if appropriate
  *
  * \param k kiss context
+ * \return true if param command processed
  *
  */
-void kiss_poll_serial (KissCtx * k)
+bool kiss_poll_serial (KissCtx * k)
 {
 
 	int c;
 	uint8_t b;
+	bool ret = false;
 
 	while ((c = kfile_getc (k->serial)) != EOF)
 	{
@@ -386,6 +391,7 @@ void kiss_poll_serial (KissCtx * k)
 		case WAIT_FOR_PARAMETER:
 			kiss_decode_command (k, b);
 			k->state = WAIT_FOR_FEND;
+			ret = true;
 			break;
 		case WAIT_FOR_TRANSPOSE:
 			switch (b)				  // the default is to put whatever character we got in the buffer
@@ -407,7 +413,7 @@ void kiss_poll_serial (KissCtx * k)
 			}
 			else if (b == FEND)
 			{
-				if (k->tx_pos >= KISS_MIN_FRAME_LEN)
+				if (k->tx_pos >= CONFIG_KISS_MIN_FRAME_LEN)
 				{
 					k->state = WAIT_FOR_TRANSMIT;
 				}
@@ -439,8 +445,18 @@ void kiss_poll_serial (KissCtx * k)
 	// no serial input in last 2 secs?
 	if (timer_clock () - k->last_tick > ms_to_ticks (2000L))
 		k->tx_pos = 0;
+	
+	return ret;
 }
 
+
+void kiss_poll_params(KissCtx * k, uint8_t *head, uint8_t *tail)
+{
+	*head = k->params.txdelay;
+	*tail = k->params.txtail;
+
+
+}
 
 
 /**
@@ -466,8 +482,5 @@ void kiss_init (KissCtx * k, KFile * channel, KFile * serial)
 
 	// get KISS parameters from EEPROM
 	load_params (k);
-	// pass head and tail timing values to modem
-	afsk_head (k->modem, k->params.txdelay);
-	afsk_tail (k->modem, k->params.txtail);
 
 }

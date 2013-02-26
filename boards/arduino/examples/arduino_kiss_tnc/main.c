@@ -102,6 +102,8 @@ init (void)
 int
 main (void)
 {
+	uint8_t head, tail;
+
 	init ();
 
 	while (1)
@@ -109,6 +111,10 @@ main (void)
 		// Use KISS module call to check AFSK and serial objects for incoming data
 		kiss_poll_modem (&kiss);
 		kiss_poll_serial (&kiss);
+		// pass head and tail timing values to modem
+		kiss_poll_params(&kiss, &head, &tail);
+		afsk_head (&afsk.fd, head);
+		afsk_tail (&afsk.fd, tail);
 
 	}
 	return 0;
