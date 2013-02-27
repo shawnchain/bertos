@@ -30,6 +30,10 @@
  *
  * -->
  *
+ * \defgroup kiss_module KISS protocol driver
+ * \ingroup net
+ * \{
+ *
  * \author Robin Gilks <g8ecj@gilks.org>
  *
  * \brief KISS module
@@ -39,10 +43,12 @@
  *
  * $WIZ$ module_name = "kiss"
  * $WIZ$ module_configuration = "bertos/cfg/cfg_kiss.h"
- * $WIZ$ module_depends = "timer", "kfile"
+ * $WIZ$ module_depends = "timer", "kfile", "hdlc"
  * $WIZ$ module_hw = "bertos/hw/hw_kiss.h"
  */
 
+#ifndef NET_KISS_H
+#define NET_KISS_H
 
 #include "cfg/cfg_kiss.h"
 
@@ -84,5 +90,11 @@ typedef struct KissCtx
 
 
 void kiss_init (KissCtx * k, KFile * channel, KFile * serial);
-void kiss_poll_serial (KissCtx * k);
+bool kiss_poll_serial (KissCtx * k);
 void kiss_poll_modem (KissCtx * k);
+void kiss_poll_params(KissCtx * k, uint8_t *head, uint8_t *tail);
+
+/** \} */ //defgroup kiss_module
+
+#endif
+

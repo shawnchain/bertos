@@ -30,7 +30,11 @@
  *
  * -->
  *
- * \brief AFSK1200 modem.
+ * \defgroup afsk_module AFSK protocol driver
+ * \ingroup net
+ * \{
+ *
+ * \brief Audio Frequency Shift Keying 1200 baud modem.
  *
  * \author Francesco Sacchi <batt@develer.com>
  *
@@ -191,5 +195,7 @@ void afsk_init (Afsk * af, int adc_ch, int dac_ch);
 int afsk_testSetup(void);
 int afsk_testRun(void);
 int afsk_testTearDown(void);
+
+/** \} */ //defgroup afsk_module
 
 #endif /* NET_AFSK_H */
