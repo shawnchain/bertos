@@ -58,6 +58,7 @@
 #define LCD_RW    PB0
 #define LCD_RS    PB1
 #define LCD_E     PD2
+#define LCD_BL    PB4         /* Backlight! */
 #define LCD_DB0   /* Implement me! */
 #define LCD_DB1   /* Implement me! */
 #define LCD_DB2   /* Implement me! */
@@ -75,6 +76,8 @@
 #define LCD_RS_PORT_DDR DDRB
 #define LCD_E_PORT      PORTD
 #define LCD_E_PORT_DDR  DDRD
+#define LCD_BL_PORT     PORTB
+#define LCD_BL_PORT_DDR DDRB
 /*@}*/
 
 /**
@@ -102,25 +105,27 @@
 #define LCD_CLR_E       LCD_E_PORT  &= ~BV(LCD_E);
 #define LCD_SET_E       LCD_E_PORT  |=  BV(LCD_E);
 
+#define LCD_CLR_BL      LCD_BL_PORT &= ~BV(LCD_BL);
+#define LCD_SET_BL      LCD_BL_PORT |= BV(LCD_BL);
 
 #if CONFIG_LCD_4BIT
 	#define LCD_WRITE_H(x) \
 	do { \
-			uint8_t dataBits = LCD_PORT & 0x0F; \
-			LCD_PORT = dataBits |((x)&0xF0); \
+			uint8_t dataBits = LCD_PORT & 0xF0; \
+			LCD_PORT = dataBits | ((x >> LCD_SHIFT)&0x0F); \
 		} while (0)
 
 	#define LCD_WRITE_L(x) \
 	do { \
-			uint8_t dataBits = LCD_PORT & 0x0F; \
-			LCD_PORT = dataBits |((x << LCD_SHIFT)&0xF0); \
+			uint8_t dataBits = LCD_PORT & 0xF0; \
+			LCD_PORT = dataBits | ((x)&0x0F); \
 		} while (0)
 
 	#define LCD_READ_H \
-		(LCD_PORT_IN & 0xf0)
+   		((LCD_PORT_IN << LCD_SHIFT) & 0xf0)
 
 	#define LCD_READ_L \
-		((LCD_PORT_IN >> LCD_SHIFT) & 0x0f)
+   		(LCD_PORT_IN & 0x0f)
 
 #else
 	#define LCD_WRITE(x)    ((void)x)/* Implement me! */
@@ -131,13 +136,13 @@
 /** Set data bus direction to output (write to display) */
 #define LCD_DB_OUT \
 	do { \
-			LCD_PORT_DDR |= 0xF0; \
+			LCD_PORT_DDR |= 0x0F; \
 	} while (0)
 
 /** Set data bus direction to input (read from display) */
 #define LCD_DB_IN \
 	do { \
-			LCD_PORT_DDR &= 0x0F; \
+			LCD_PORT_DDR &= 0xF0; \
 	} while (0)
 
 /** Delay for write (Enable pulse width, 220ns) */
@@ -167,6 +172,7 @@ INLINE void lcd_hd44_hw_bus_init(void)
 	LCD_RS_PORT_DDR |= BV(LCD_RS);
 	LCD_RW_PORT_DDR |= BV(LCD_RW);
 	LCD_E_PORT_DDR |= BV(LCD_E);
+	LCD_BL_PORT_DDR |= BV(LCD_BL);
 
 	LCD_SET_RS;
 	LCD_CLR_RD;
