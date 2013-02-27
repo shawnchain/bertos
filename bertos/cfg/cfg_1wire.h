@@ -52,7 +52,7 @@
  *
  * $WIZ$ type = "boolean"
  */
-#define OW_ONE_BUS   1
+#define OW_ONE_BUS   0
 
 
 /**
@@ -72,8 +72,9 @@
  * $WIZ$ type = "enum"
  * $WIZ$ value_list = "onewire_ddr_list"
  */
+#if OW_ONE_BUS == 1
 #define OW_DDR  DDRB
-
+#endif
 
 /**
  *  1-wire data pin
@@ -81,7 +82,9 @@
  * $WIZ$ type = "enum"
  * $WIZ$ value_list = "onewire_pin_list"
  */
+#if OW_ONE_BUS == 1
 #define OW_PIN  PB0
+#endif
 
 
 /**
@@ -90,7 +93,9 @@
  * $WIZ$ type = "enum"
  * $WIZ$ value_list = "onewire_portin_list"
  */
+#if OW_ONE_BUS == 1
 #define OW_IN   PINB
+#endif
 
 /**
  *  1-wire output port
@@ -98,7 +103,9 @@
  * $WIZ$ type = "enum"
  * $WIZ$ value_list = "onewire_portout_list"
  */
+#if OW_ONE_BUS == 1
 #define OW_OUT  PORTB
+#endif
 
 
 /**
