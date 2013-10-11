@@ -24,6 +24,9 @@ DIV.qindex {
 	padding: 2px;
 	line-height: 140%;
 }
+DIV.fragment {
+	white-space: pre;
+}
 DIV.nav {
 	width: 100%;
 	background-color: #e8eef2;

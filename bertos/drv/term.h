@@ -147,8 +147,8 @@ INLINE Term * TERM_CAST(KFile *fd)
 
 void term_init(struct Term *fds);
 
-	/** \} */ //defgroup term_api
-
+		/** \} */ //defgroup term_api
+	/** \} */ //ingroup drivers
 /** \} */ //defgroup term_driver
 
 
