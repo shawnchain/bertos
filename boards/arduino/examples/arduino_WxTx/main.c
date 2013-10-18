@@ -279,11 +279,6 @@ uint8_t ids[4][OW_ROMCODE_SIZE];	// only expect to find 2 actually!!
 int8_t battid = -1, thermid = -1;
 
 
-// port PB1 as output for 433MHz transmitter on Arduino pin D9
-#define RF_INIT() do { DDRB |= BV(1); } while(0)
-#define RF_ON()   do { PORTB |= BV(1); } while(0)
-#define RF_OFF()  do { PORTB &= ~BV(1); } while(0)
-
 // port PB0 as rain sensor input (PCINT0) on Arduino pin D8
 // set as input, pullup on, enable interrupt
 #define RAIN_INIT() do { \
@@ -296,6 +291,15 @@ int8_t battid = -1, thermid = -1;
 // disable pcint 0
 #define RAIN_OFF() do { PCMSK0 &= ~BV (PCINT0); } while(0)
 
+// port PB1 as output for 433MHz transmitter on Arduino pin D9
+#define RF_INIT() do { DDRB |= BV(1); } while(0)
+#define RF_ON()   do { PORTB |= BV(1); } while(0)
+#define RF_OFF()  do { PORTB &= ~BV(1); } while(0)
+
+// port PB2 is already defined as the 1-wire interface in cfg/cfg_1wire.h
+
+// port PB3 as wind sensor input 
+// port PB4 as DTR signal to wind sensor
 #define TX20_INIT()  do { \
 	DDRB &= ~BV (3);      \
 	PORTB |= BV (3);      \
@@ -307,7 +311,7 @@ int8_t battid = -1, thermid = -1;
 #define TX20_DATA() (PINB & BV(3))
 #define TX20_TIMEOUT 5000
 
-// run timer1 at /8 of 16MHz clock
+// run timer1 at /8 of 16MHz clock to get microsecond timings
 #define START_US() do { \
 	TCCR1A = 0;          \
 	TCCR1B = BV (CS11);  \
