@@ -24,6 +24,7 @@
 #include <cfg/debug.h>
 
 #include <stdint.h>
+#include <math.h>
 
 #include <avr/eeprom.h>
 
@@ -35,8 +36,12 @@
 #include <drv/ow_ds2438.h>
 #include <drv/ow_ds18x20.h>
 
-
+// set to 1 if a TX23 rather than a TX20
+#define TX23   0
+// set to 1 if we want to check the invers data from the TX20
 #define CHKINV 0
+// local display (serial) on the Arduino
+#define LOCAL_DISPLAY 0
 
 /*--------------------------------------------------------------------------------------
 TX20 and TX23 wind sensor protocol - as documented by john.geek.nz
@@ -45,7 +50,7 @@ TX20 and TX23 wind sensor protocol - as documented by john.geek.nz
  in a npn transistor buffer which inverts the signal. This is good - it saves complicating the code.
 
 The datagram is 41 bits long and contains six data sections. Each bit is almost exactly 1.2msec, so the datagram 
-takes 49.2 msec to transmit nd uses Inverted logic (0v = 1, +Vcc = 0).
+takes 49.2 msec to transmit and uses Inverted logic (0v = 1, +Vcc = 0).
 
 Section     Length (bits)     Inverted?     Endianness     Description     Notes
 A              5               Yes          LSB first      Start Frame     Always 00100
@@ -335,7 +340,10 @@ void init(void)
 	IRQ_ENABLE;
 
 	/* Initialize debugging module (allow kprintf(), etc.) */
-//	kdbg_init();
+#if LOCAL_DISPLAY == 1
+	kdbg_init();
+#endif
+
 	/* Initialize system timer */
 	timer_init();
 
@@ -545,6 +553,27 @@ ISR (PCINT0_vect)
 }
 
 
+#if LOCAL_DISPLAY == 1
+static float dewpoint(float T, float h) {
+  float td;
+  // Simplified dewpoint formula from Lawrence (2005), doi:10.1175/BAMS-86-2-225
+  td = T - (100-h)*pow(((T+273.15)/300),2)/5 - 0.00135*pow(h-84,2) + 0.35;
+  return td;
+}
+
+static float windchill(float temp, float wind)
+{
+  float wind_chill;
+  float wind2 = pow(wind, 0.16);
+
+  wind_chill = 13.12 + (0.6215 * temp) - (11.37 * wind2) + (0.3965 * temp * wind2);
+  wind_chill = (wind <= 4.8) ? temp : wind_chill;
+  wind_chill = (temp > 10) ? temp : wind_chill;
+  return wind_chill;
+}
+#endif
+
+
 // data is 0v = '0'; Vcc = '1', each bit is ~1.2mS
 // read the first 2 bits of the sync pattern to determine bit rate, then the following 3 bits
 // and then read the following 20 bits, we can ignore the trailing inverted values
@@ -591,9 +620,9 @@ static int16_t read_tx20 (int16_t * Dirn, int16_t * Wind)
 	}
 
 // determine halfbit period - should have time of 2 bits
-	halfbit = READ_US() / 4;
+	halfbit = (READ_US() / 4);
 	timer_udelay(halfbit);
-// read rest of sync
+	// read rest of sync
 	sync = 0;
 	for (i = 0; i < 3; i++)
 	{
@@ -639,15 +668,15 @@ static int16_t read_tx20 (int16_t * Dirn, int16_t * Wind)
 	}
 
 // test checksum
-	i = dirn + ((wind >> 8) & 0xf) + ((wind >> 4) & 0xf) + (wind & 0xf);
+	i = (dirn + ((wind >> 8) & 0xf) + ((wind >> 4) & 0xf) + (wind & 0xf)) & 0xf;
 	if (i != crc)
 	{
-//		kprintf("bad crc %d %d\n", crc, i);
+//		kprintf("read crc %d my crc %d dirn %d wind %d \n", crc, i, dirn, wind);
 		return -1;
 	}
 
 // seems pretty reliable - no need to complicate things with checking the inverse values...
-#if CHKINV
+#if CHKINV == 1
 	temp = 0;
 	for (i = 0; i < 4; i++)
 	{
@@ -703,13 +732,25 @@ int main (void)
 
 	// if a TX20 (rather than a TX23) then set DTR low
 	// TX23 requires a waggle (see later)
+#if TX23 == 0
 	TX20_ON();
+#endif
 
 	// get the last rainfall value
 	last_rain = gRain;
 
 	while (1)
 	{
+
+		if (thermid >= 0)
+		{
+			// 10 bit resolution is enough (more is much slower!!)
+			// in the range -10 to +85 the accuracy is only +/-0.5C
+			ow_ds18x20_resolution(ids[thermid], 10);
+			ow_ds18X20_start (ids[thermid], false);
+			while (ow_busy ());
+			ow_ds18X20_read_temperature (ids[thermid], &temperature);
+		}
 
 		if (battid >= 0)
 		{
@@ -718,7 +759,10 @@ int main (void)
 			ow_ds2438_doconvert (ids[battid]);
 			if (!ow_ds2438_readall (ids[battid], &BatteryCtx))
 				continue;                   // bad read - exit fast!!
-			temperature = BatteryCtx.Temp;
+			// if no DS18x20 temperature sensor then use this one
+			// its only +/-2C but its better than nothing!!
+			if (thermid < 0)
+				temperature = BatteryCtx.Temp;
 			sensor_volts = (float)BatteryCtx.Volts;
 
 			// switch voltage sense to supply pin
@@ -732,23 +776,18 @@ int main (void)
 				humidity = 100;
 			else if (humidity < 0)
 				humidity = 0;
-		} 
-
-		else if (thermid >= 0)
+		}
+		else
 		{
-			// 10 bit resolution is enough (more is much slower!!)
-			ow_ds18x20_resolution(ids[thermid], 10);
-			ow_ds18X20_start (ids[thermid], false);
-			while (ow_busy ());
-			ow_ds18X20_read_temperature (ids[thermid], &temperature);
 			// the minimum value the console will display is 10%RH
 			// set to 0 if you want a blank section in the display!!
-			humidity = 10;
+			humidity = 0;
 		}
 
 		// if the rain changed then save the new value in eeprom
 		if (gRain != last_rain)
 		{
+			gRain &= 4095;
 			last_rain = gRain;
 			eeprom_write_block ((const void *) &gRain, (void *) &eeRain, sizeof (gRain));
 			RAIN_ON();          // enable rain sensor input again
@@ -760,12 +799,23 @@ int main (void)
 		set_rain(gRain);
 
 // if a TX23 then we have to waggle 'DTR' first. For a TX20 we only have to do it once at startup
-//		TX20_ON();
-//		timer_delay(500);
-//		TX20_OFF();
-//		timer_delay(2000);
+#if TX23 == 1
+		TX20_ON();
+		timer_delay(500);
+		TX20_OFF();
+		timer_delay(2000);
+#endif
 		if (read_tx20(&Dirn, &Wind) > 0)
 			set_wind(Dirn, Wind);
+
+#if LOCAL_DISPLAY == 1
+		{
+			float wc, dp;
+			wc = windchill((float) temperature / 100, (float) Wind * 0.36);
+			dp = dewpoint((float)temperature / 100, (float) humidity);
+			kprintf("To: %2.1f WC: %2.1f DP: %2.1f Rtot: %4.1f RHo: %d WS: %3.1f DIR0: %3.1f\n", (float)temperature / 100, wc, dp, (float)gRain/10, humidity, (float)Wind * 0.36, (float)Dirn * 22.5);
+		}
+#endif
 
 // test data while debugging!!
 //		set_temp(233);
