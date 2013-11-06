@@ -24,6 +24,7 @@
 #include <cfg/debug.h>
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
 
@@ -31,7 +32,10 @@
 
 #include <drv/timer.h>
 #include <drv/ser.h>
+#include <io/kfile.h>
 
+#include "rtc.h"
+#include "eeprommap.h"
 
 // Comment out for a normal build
 // Uncomment for a debug build
@@ -83,10 +87,10 @@ uint8_t PacketBitCounter;
 bool ReadingPacket;
 bool PacketDone;
 
-uint8_t seconds = 0, minutes = 0, hours = 0;
+Serial serial;
+
 int16_t rain_mins[60];
 int16_t rain_hours[24];
-int16_t EEMEM eeRain;
 int16_t gRain;
 int16_t rain1h;           /* rain in last hour */
 int16_t rain24h;          /* rain in last day */
@@ -156,19 +160,19 @@ ISR( TIMER1_CAPT_vect )
       if (SinceLastBit > MAX_WAIT) { // too long since last bit read
         if ((SinceLastBit > (2*MIN_WAIT+MIN_ONE)) && (SinceLastBit < (2*MAX_WAIT+MAX_ONE))) { /* missed a one */
 #ifdef DEBUG
-          kprintf("missed one\n");
+          kfile_printf (&serial.fd, "missed one\r\n");
 #endif
         } else {
           if ((SinceLastBit > (2*MIN_WAIT+MIN_ZERO)) && (SinceLastBit < (2*MAX_WAIT+MAX_ZERO))) { /* missed a zero */
 #ifdef DEBUG
-            kprintf("missed zero\n");
+            kfile_printf (&serial.fd, "missed zero\r\n");
 #endif
           }
         }
         RED_TESTLED_OFF();
         if (ReadingPacket) {
 #ifdef DEBUG
-          kprintf("dropped packet. bits read: %d\n", PacketBitCounter);
+          kfile_printf (&serial.fd, "dropped packet. bits read: %d\r\n", PacketBitCounter);
 #endif
           ReadingPacket=0;
           PacketBitCounter=0;
@@ -176,7 +180,7 @@ ISR( TIMER1_CAPT_vect )
         CompByte=0xFF;			  /* reset comparison byte */
       } else { /* call it a one */
         if (ReadingPacket) {	/* record the bit as a one */
-//          kprintf("1");
+//          kfile_printf (&serial.fd, "1");
           mask = (1 << (3 - (PacketBitCounter & 0x03)));
           DataPacket[(PacketBitCounter >> 2)] |= mask;
           PacketBitCounter++;
@@ -190,14 +194,14 @@ ISR( TIMER1_CAPT_vect )
     } else {			/* Check whether it's a zero */
       if ((CapturedPeriod > MIN_ZERO) && (CapturedPeriod < MAX_ZERO)) {
         if (ReadingPacket) {	/* record the bit as a zero */
-//         kprintf("0");
+//         kfile_printf (&serial.fd, "0");
           mask = (1 << (3 - (PacketBitCounter & 0x03)));
           DataPacket[(PacketBitCounter >> 2)] &= ~mask;
           PacketBitCounter++;
         } else {		      /* still looking for valid packet data */
          CompByte = (CompByte << 1); /* push zero on the end */
 /* 	  if ((CompByte & 0xF0) != 0xf0) { */
-/* 	    kprintf("%2x "CompByte); */
+/* 	    kfile_printf (&serial.fd, "%2x "CompByte); */
 /* 	  } */
         }
         LastBitTime = CapturedTime;
@@ -216,7 +220,7 @@ ISR( TIMER1_CAPT_vect )
   } else {
     /* Check whether we have the start of a data packet */
     if (CompByte == PACKET_START) {
-//      kprintf("Got packet start!");
+//      kfile_printf (&serial.fd, "Got packet start!");
       CompByte=0xFF;		/* reset comparison byte */
       RED_TESTLED_ON();
       /* set a flag and start recording data */
@@ -257,46 +261,12 @@ static float windchill(float temp, float wind)
 
 static void update_rain(void)
 {
-  rain_mins[minutes] = gRain;
-  rain_hours[hours] = gRain;
-  rain1h = gRain - rain_mins[(minutes+1) % 60];
-  rain24h = gRain - rain_hours[(hours+1) % 24];
+  rain_mins[gMINUTE] = gRain;
+  rain_hours[gHOUR] = gRain;
+  rain1h = gRain - rain_mins[(gMINUTE+1) % 60];
+  rain24h = gRain - rain_hours[(gHOUR+1) % 24];
 
 }
-
-// a mechanism to look after time!!
-static void ticker (void)
-{
-  static ticks_t LastTicks = 0;
-  int32_t diff;
-
-
-  // find out how far off the exact number of ticks we are
-  diff = timer_clock () - LastTicks - ms_to_ticks (1000);
-  if (diff < 0)
-    return;
-
-  // add in the number of ticks we drifted by
-  LastTicks = timer_clock () - diff;
-
-  seconds++;            // increment second
-  if (seconds > 59)
-  {
-    update_rain();       // recalculate 1 and 24 hour rain totals every minute
-    seconds = 0;
-
-    minutes++;
-    if (minutes > 59)
-    {
-      minutes = 0;
-
-      hours++;
-      if (hours > 23)
-        hours = 0;
-    }
-  }
-}
-
 
 
 
@@ -304,19 +274,26 @@ static void init(void)
 {
   uint8_t j;
 
-  kdbg_init();
-  kprintf( "%s", "La Crosse weather station simulator\n" );
+  /* Enable all the interrupts */
+  IRQ_ENABLE;
+	/* Initialize system timer */
+	timer_init();
+	/* Initialize UART0 */
+	ser_init(&serial, SER_UART0);
+	/* Configure UART0 to work at 115.200 bps */
+	ser_setbaudrate(&serial, 115200);
+  // get the last rainfall value & last time setting
+  load_eeprom_values();
+	// set clock up using last values from eeprom
+	rtc_init();
+//  kdbg_init();
+  kfile_printf (&serial.fd, "La Crosse weather station simulator\r\n" );
 
-  timer_init();
-
-  // get the last rainfall value
-  eeprom_read_block ((void *) &gRain, (const void *) &eeRain, sizeof (gRain));
   for (j = 0; j < 60; j++)
     rain_mins[j] = gRain;
   for (j = 0; j < 24; j++)
     rain_hours[j] = gRain;
   update_rain();
-  cli();
 
   for (j = 0; j < PACKET_SIZE; j++)
     DataPacket[j] = 0;
@@ -335,12 +312,14 @@ static void init(void)
   SET_INPUT_CAPTURE_RISING_EDGE();
   //Timer1 Input Capture Interrupt Enable, Overflow Interrupt Enable  
   TIMSK1 = ( _BV(ICIE1) | _BV(TOIE1) );
-  sei();
-  /* Enable all the interrupts */
-  IRQ_ENABLE;
 
 }
 
+static void print_weather(void)
+{
+  kfile_printf (&serial.fd, "%02d-%02d-%02d %02d:%02d:%02d ", gDAY, gMONTH, gYEAR, gHOUR, gMINUTE, gSECOND);
+  kfile_printf (&serial.fd, "To:%2.1f WC:%2.1f DP:%2.1f Rtot:%4.1f R1h:%2.1f R24h:%3.1f RHo:%d WS:%3.1f DIR0:%3.1f DIR1:%s\r\n", tempC, windC, dp, RAINCONVERT(gRain), RAINCONVERT(rain1h), RAINCONVERT(rain24h), rh, speedW, (float)dirn * 22.5, (const char*)DIRN[(int)dirn]);
+}
 
 
 // parse a raw data string
@@ -351,11 +330,11 @@ static void ParsePacket(uint8_t *Packet) {
   static uint8_t collectedData = 0;
 
   #ifdef DEBUG
-  kprintf("RAW: ");
+  kfile_printf (&serial.fd, "RAW: ");
   for (j=0; j<PACKET_SIZE; j++) {
-    kprintf("%01x", Packet[j]);
+    kfile_printf (&serial.fd, "%01x", Packet[j]);
   }	
-  kprintf("\n");
+  kfile_printf (&serial.fd, "\r\n");
   #endif
 
   chksum = PACKET_START;
@@ -382,7 +361,7 @@ static void ParsePacket(uint8_t *Packet) {
          if (rain != gRain)
          {
            gRain = rain;
-           eeprom_write_block ((const void *) &gRain, (void *) &eeRain, sizeof (gRain));
+           save_eeprom_values();
            update_rain();
          }
          collectedData |= 4;
@@ -394,32 +373,211 @@ static void ParsePacket(uint8_t *Packet) {
          collectedData |= 8;
          break;
       }
+
       if (collectedData == 15)
       {
-         kprintf("To:%2.1f WC:%2.1f DP:%2.1f Rtot:%4.1f R1h:%2.1f R24h:%3.1f RHo:%d WS:%3.1f DIR0:%3.1f DIR1:%s\n", tempC, windC, dp, RAINCONVERT(gRain), RAINCONVERT(rain1h), RAINCONVERT(rain24h), rh, speedW, (float)dirn * 22.5, (const char*)DIRN[(int)dirn]);
-         collectedData = 0;
+        print_weather();
+        collectedData = 0;
       }
     } else {
       #ifdef DEBUG
-      kprintf("Fail secondary data check\n");
+      kfile_printf (&serial.fd, "Fail secondary data check\r\n");
       #endif
     }
   } else {                  /* checksum fail */
     #ifdef DEBUG
-    kprintf("chksum = %2x, data chksum %2x\n", chksum & 0x0f, Packet[PACKET_SIZE-1]);
+    kfile_printf (&serial.fd, "chksum = %2x, data chksum %2x\r\n", chksum & 0x0f, Packet[PACKET_SIZE-1]);
     #endif
   }
 }
 
+static char *
+get_decimal (char *ptr, int16_t * v)
+{
+	int16_t t = 0;
+
+	while (*ptr >= '0' && *ptr <= '9')
+		t = (t * 10) + (*ptr++ - '0');
+
+	// skip over terminator
+	ptr++;
+
+	*v = t;
+	return ptr;
+}
+
+static bool check_value(int16_t * var, int16_t value, int16_t lower, int16_t upper)
+{
+
+  if ((value < lower) || (value > upper))
+    return true;
+
+  *var = value;
+  return false;
+
+}
+
+// interpret a command from the serial interface
+static void
+process_command (char *command, uint8_t count)
+{
+	if (count == 0)				  // display now (empty input!!)
+	{
+      print_weather();
+	}
+	if (strncmp (command, "date", 4) == 0)
+	{
+		int16_t t;
+		bool res = false;
+		uint8_t month, day;
+
+		command += 4;
+		while (*command == ' ')
+			command++;
+
+		if (command[0] == '\0')
+		{
+			kfile_printf (&serial.fd, "%02d-%02d-%02d\r\n", day, month, gYEAR);
+		}
+		else
+		{
+			// parse date
+			command = get_decimal (command, &t);
+			res |= check_value (&gDAY, t, 1, 31);
+			command = get_decimal (command, &t);
+			res |= check_value (&gMONTH, t, 1, 12);
+			command = get_decimal (command, &t);
+			res |= check_value (&gYEAR, t, 13, 20);
+			if (res)
+				kfile_printf (&serial.fd, "Invalid date\r\n");
+			else
+				set_epoch_time ();
+		}
+	}
+
+	else if (strncmp (command, "time", 4) == 0)
+	{
+		int16_t t;
+		bool res = false;
+
+		// skip command string
+		command += 4;
+		// skip whitespace
+		while (*command == ' ')
+			command++;
+		if (command[0] == '\0')
+		{
+			kfile_printf (&serial.fd, "%02d:%02d:%02d\r\n", gHOUR, gMINUTE, gSECOND);
+		}
+		else
+		{
+			// parse time
+			command = get_decimal (command, &t);
+			res |= check_value (&gHOUR, t, 0, 23);
+			command = get_decimal (command, &t);
+			res |= check_value (&gMINUTE, t, 0, 59);
+			command = get_decimal (command, &t);
+			res |= check_value (&gSECOND, t, 0, 59);
+			if (res)
+				kfile_printf (&serial.fd, "Invalid time\r\n");
+			else
+				set_epoch_time ();
+		}
+	}
+	else if (strncmp (command, "adjust", 6) == 0)
+	{
+		int16_t t;
+		bool res = false, neg = false;
+
+		// skip command string
+		command += 6;
+		// skip whitespace
+		while (*command == ' ')
+			command++;
+		if (command[0] == '\0')
+		{
+			kfile_printf (&serial.fd, "%3d\r\n", gAdjustTime);
+		}
+		else
+		{
+			// parse time adjustment value
+			if (*command == '-')
+			{
+				neg = true;
+				command++;
+			}
+			command = get_decimal (command, &t);
+			if (neg)
+				t = -t;
+			res |= check_value (&gAdjustTime, t, -719, 719);
+			if (res)
+				kfile_printf (&serial.fd, "Invalid time adjustment\r\n");
+			else
+				set_epoch_time ();
+		}
+	}
+
+}
+
+
+static void get_input(void)
+{
+	int16_t c;
+	static uint8_t bcnt = 0;
+#define CBSIZE 20
+	static char cbuff[CBSIZE];	  /* console I/O buffer       */
+
+	while ((c = kfile_getc (&serial.fd)) != EOF)
+	{
+		c &= 0x7f;
+		switch ((char) c)
+		{
+		case 0x03:					  // ctl-c
+			bcnt = 0;
+		case '\r':
+// process what is in the buffer
+			cbuff[bcnt] = '\0';	  // don't include terminator in count
+			kfile_printf (&serial.fd, "\r\n\n");
+			process_command (cbuff, bcnt);
+			bcnt = 0;
+			break;
+		case 0x08:					  // backspace
+		case 0x7f:					  // rubout
+			if (bcnt > 0)
+			{
+				kfile_putc (0x08, &serial.fd);
+				kfile_putc (' ', &serial.fd);
+				kfile_putc (0x08, &serial.fd);
+				bcnt--;
+			}
+			break;
+		default:
+			if ((c >= ' ') && (bcnt < CBSIZE))
+			{
+				cbuff[bcnt++] = c;
+				kfile_putc (c, &serial.fd);	// echo...
+			}
+			break;
+		}
+
+	}
+}
 
 // in the main loop, just hang around waiting to see whether the interrupt routine has gathered a full packet yet
 int main (void)
 {
+  static ticks_t rain_refresh;
   init();
 
   while (1)
   {
-    ticker();
+    get_input();
+    run_rtc();
+    if (timer_clock () - rain_refresh > ms_to_ticks (1000))
+    {
+      rain_refresh = timer_clock ();
+      update_rain();
+    }
     timer_delay(2);                  // wait for a short time
     if (PacketDone) {	     // have a bit string that's ended
       ParsePacket(FinishedPacket);

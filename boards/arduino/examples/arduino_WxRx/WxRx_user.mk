@@ -10,6 +10,8 @@ WxRx_PROGRAMMER_PORT = none
 # Files included by the user.
 WxRx_USER_CSRC = \
 	$(WxRx_SRC_PATH)/main.c \
+	$(WxRx_SRC_PATH)/rtc.c \
+	$(WxRx_SRC_PATH)/eeprommap.c \
 	#
 
 # Files included by the user.
