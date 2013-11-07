@@ -34,8 +34,8 @@
 #include <drv/ser.h>
 #include <io/kfile.h>
 
-#include "rtc.h"
 #include "eeprommap.h"
+#include "rtc.h"
 
 // Comment out for a normal build
 // Uncomment for a debug build
@@ -537,7 +537,7 @@ static void get_input(void)
 		case '\r':
 // process what is in the buffer
 			cbuff[bcnt] = '\0';	  // don't include terminator in count
-			kfile_printf (&serial.fd, "\r\n\n");
+			kfile_printf (&serial.fd, "\r\n");
 			process_command (cbuff, bcnt);
 			bcnt = 0;
 			break;

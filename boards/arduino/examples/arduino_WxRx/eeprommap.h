@@ -31,10 +31,12 @@
 #include "rtc.h"
 
 
-// globarainfall total in 'tips'
+// global rainfall total in 'tips'
 extern int16_t EEMEM eeRain;
 // date and time stored when set and every hour so clock isn't too far out after a reset
 extern DT_t EEMEM eeDateTime;
+// configured number of seconds per day to adjust clock for slow/fast 16MHz crystal
+extern int16_t EEMEM eeAdjustTime;
 
 void load_eeprom_values(void);
 void save_eeprom_values(void);
