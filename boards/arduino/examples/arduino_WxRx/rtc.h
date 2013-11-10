@@ -46,10 +46,10 @@ extern DT_t gDateTime;
 
 //  Function declarations
 void rtc_init (void);           //initialize the Timer Counter 2 in asynchron operation
-void run_rtc (void);        //updates the time and date
+void run_rtc (void);            //updates the time and date
 // time in seconds since midnight, 1st Jan 2000
-uint32_t time(void);
-void set_epoch_time(void);
-void get_datetime(uint16_t* year, uint8_t* month, uint8_t* day, uint8_t* hour, uint8_t* min, uint8_t* sec);
+uint32_t time (void);
+void set_epoch_time (void);
+void get_datetime (uint16_t * year, uint8_t * month, uint8_t * day, uint8_t * hour, uint8_t * min, uint8_t * sec);
 
 #endif

@@ -38,9 +38,7 @@ extern DT_t EEMEM eeDateTime;
 // configured number of seconds per day to adjust clock for slow/fast 16MHz crystal
 extern int16_t EEMEM eeAdjustTime;
 
-void load_eeprom_values(void);
-void save_eeprom_values(void);
+void load_eeprom_values (void);
+void save_eeprom_values (void);
 
 #endif
-
-

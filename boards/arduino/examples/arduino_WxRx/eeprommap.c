@@ -42,21 +42,23 @@ int16_t EEMEM eeAdjustTime;
 // date and time stored when set and every hour so clock isn't too far out after a reset
 DT_t EEMEM eeDateTime;
 
-void load_eeprom_values(void)
+void
+load_eeprom_values (void)
 {
 
-	// initial time and date setting
-	eeprom_read_block ((void *) &gDateTime, (const void *) &eeDateTime, sizeof (gDateTime));
-	eeprom_read_block ((void *) &gAdjustTime, (const void *) &eeAdjustTime, sizeof (gAdjustTime));
-	eeprom_read_block ((void *) &gRain, (const void *) &eeRain, sizeof (gRain));
+   // initial time and date setting
+   eeprom_read_block ((void *) &gDateTime, (const void *) &eeDateTime, sizeof (gDateTime));
+   eeprom_read_block ((void *) &gAdjustTime, (const void *) &eeAdjustTime, sizeof (gAdjustTime));
+   eeprom_read_block ((void *) &gRain, (const void *) &eeRain, sizeof (gRain));
 
 
 }
 
-void save_eeprom_values(void)
+void
+save_eeprom_values (void)
 {
-	eeprom_write_block ((const void *) &gDateTime, (void *) &eeDateTime, sizeof (gDateTime));
-	eeprom_write_block ((const void *) &gAdjustTime, (void *) &eeAdjustTime, sizeof (gAdjustTime));
-	eeprom_write_block ((const void *) &gRain, (void *) &eeRain, sizeof (gRain));
+   eeprom_write_block ((const void *) &gDateTime, (void *) &eeDateTime, sizeof (gDateTime));
+   eeprom_write_block ((const void *) &gAdjustTime, (void *) &eeAdjustTime, sizeof (gAdjustTime));
+   eeprom_write_block ((const void *) &gRain, (void *) &eeRain, sizeof (gRain));
 
 }
