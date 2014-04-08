@@ -360,7 +360,7 @@ void afsk_head (KFile * fd, int c)
 {
 	Afsk *af = AFSK_CAST (fd);
 
-	hdlc_head (&af->tx_hdlc, c);
+	hdlc_head (&af->tx_hdlc, c, BITRATE);
 }
 
 /**
@@ -375,7 +375,7 @@ void afsk_tail (KFile * fd, int c)
 {
 	Afsk *af = AFSK_CAST (fd);
 
-	hdlc_tail (&af->tx_hdlc, c);
+	hdlc_tail (&af->tx_hdlc, c, BITRATE);
 }
 
 
