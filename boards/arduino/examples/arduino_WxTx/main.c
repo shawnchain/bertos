@@ -5,6 +5,7 @@
 //  WxTx.c   -   This program collects weather data from sensors and sends it to a LaCrosse base unit via RF
 //
 //  History:   1.0 - First release. 
+//             1.1 - Use state machine for rain tipper input and poll it rather than use external interrupt
 //
 //    This program is free software; you can redistribute it and/or modify
 //    it under the terms of the GNU General Public License as published by
@@ -38,10 +39,10 @@
 
 // set to 1 if a TX23 rather than a TX20
 #define TX23   0
-// set to 1 if we want to check the invers data from the TX20
+// set to 1 if we want to check the invers data from the TX20/23
 #define CHKINV 0
 // local display (serial) on the Arduino
-#define LOCAL_DISPLAY 0
+#define LOCAL_DISPLAY 1
 
 /*--------------------------------------------------------------------------------------
 TX20 and TX23 wind sensor protocol - as documented by john.geek.nz
@@ -270,7 +271,7 @@ bit     0123456789012345678901234567890123456789012345678901 0011223344556
 #define OFF_MAX      13
 
 int16_t EEMEM eeRain;
-int16_t gRain;
+volatile int16_t gRain;
 
 // initialised with static test data
 uint8_t data [IDX_MAX][OFF_MAX] = {
@@ -284,31 +285,48 @@ uint8_t ids[4][OW_ROMCODE_SIZE];	// only expect to find 2 actually!!
 int8_t battid = -1, thermid = -1;
 
 
-// port PB0 as rain sensor input (PCINT0) on Arduino pin D8
-// set as input, pullup on, enable interrupt
-#define RAIN_INIT() do { \
-	DDRB &= ~BV (0);      \
-	PORTB |= BV (0);      \
-	PCICR |= BV(PCIE0);   \
+
+
+// port PB0 as rain tipper input on Arduino pin D8
+#define DEBOUNCE 16
+
+// set as input, pullup on, timer 2 on
+// PWM phase correct, clk/1, enable output compare int, period ~= 9uS 
+// need to debouce for ~= 200uS so count over 16 counts
+#define RAIN_INIT() do {  \
+	DDRB &= ~BV (0);       \
+	PORTB |= BV (0);       \
+	TCCR2A = BV(WGM21);    \
+	TCCR2B = BV(CS20);     \
+	OCR2A = 200;           \
+	TIMSK2 = BV(OCIE2A);   \
 	} while(0)
-// enable pcint 0
-#define RAIN_ON()  do { PCMSK0 |= BV (PCINT0); } while(0)
-// disable pcint 0
-#define RAIN_OFF() do { PCMSK0 &= ~BV (PCINT0); } while(0)
+// check the state of the tipper input
+#define RAIN_POLL() (PINB & BV(0))
+// what states the reed switch on the rain tipper can be in
+enum rain_states 
+{
+	OPEN = 1,
+	CLOSING,
+	CLOSED,
+	OPENING
+};
 
 // port PB1 as output for 433MHz transmitter on Arduino pin D9
-#define RF_INIT() do { DDRB |= BV(1); } while(0)
+#define RF_INIT() do {    \
+	DDRB |= BV(1);    \
+	} while(0)
 #define RF_ON()   do { PORTB |= BV(1); } while(0)
 #define RF_OFF()  do { PORTB &= ~BV(1); } while(0)
 
-// port PB2 is already defined as the 1-wire interface in cfg/cfg_1wire.h
+// port PB2 (Arduino pin D10) is already defined as the 1-wire interface in cfg/cfg_1wire.h
 
-// port PB3 as wind sensor input 
-// port PB4 as DTR signal to wind sensor
-#define TX20_INIT()  do { \
+// port PB3 (Arduino pin D11) as wind sensor input 
+// port PB4 (Arduino pin D12) as DTR signal to wind sensor
+#define TX20_INIT()  do {     \
 	DDRB &= ~BV (3);      \
 	PORTB |= BV (3);      \
-	DDRB |= BV (4);      \
+	DDRB |= BV (4);       \
 	PORTB |= BV (4);      \
 	} while(0)
 #define TX20_OFF()  do { PORTB |= BV(4); } while(0)
@@ -331,6 +349,11 @@ int8_t battid = -1, thermid = -1;
 // initial amount of charge in battery
 #define CHARGE 1
 
+// to emulate the WS2315, restrict the range of humidity reported
+#define MAXHUMIDITY 99
+#define MINHUMIDITY 5
+
+
 static
 void init(void)
 {
@@ -349,14 +372,14 @@ void init(void)
 
 	// Signal change trigger interrupt for rain tipper on pcint0 D8 (PB0)
 	RAIN_INIT();
-	RAIN_ON();
 	// get the last rainfall value
 	eeprom_read_block ((void *) &gRain, (const void *) &eeRain, sizeof (gRain));
 
-	//output to transmitter to base unit
+
+	// output pin to transmit to base unit
 	RF_INIT();
 
-	// input for the TX20 wind sensor
+	// input pin(s) for the TX20 wind sensor
 	TX20_INIT();
 
 // search for battery monitor chip (used by humidity sensor) and temperature sensor
@@ -377,7 +400,8 @@ void init(void)
 		case SBATTERY_FAM:
 			battid = cnt;
 			break;
-		// digital thermometer chips can also be used but we will return a fixed or null humidity reading
+		// digital thermometer chips will be used by preferene for temperature readings only
+		// can also be used alone but we will return a fixed or null humidity reading
 		case DS18S20_FAMILY_CODE:
 		case DS18B20_FAMILY_CODE:
 		case DS1822_FAMILY_CODE:
@@ -545,11 +569,64 @@ void send_all (void)
 	}
 }
 
-// rainfall counter. Disable interrupts when a tip seen
-ISR (PCINT0_vect)
+
+
+ISR (TIMER2_COMPA_vect)
 {
-	gRain++;
-	RAIN_OFF();
+	static uint8_t state = OPEN;
+	static int16_t count = 0;
+	uint8_t newstate = state;
+
+	switch (state)
+	{
+	case OPEN:
+		if (RAIN_POLL() == 0)     // closing?
+		{
+			newstate = CLOSING;
+		}
+		break;
+	case CLOSING:
+		if (RAIN_POLL() == 0)     // still closing?
+		{
+			if (++count == DEBOUNCE)
+			{
+				newstate = CLOSED;
+			}
+		}
+		else                      // bouncing or opening
+		{
+			newstate = OPEN;
+		}
+		break;
+	case CLOSED:
+		if (RAIN_POLL() != 0)     // opening?
+		{
+			newstate = OPENING;
+		}
+		break;
+	case OPENING:
+		if (RAIN_POLL() != 0)    // still opening
+		{
+			if (++count == DEBOUNCE)
+			{
+				newstate = OPEN;
+				gRain++;            // we have seen one more tip
+			}
+		}
+		else
+		{
+			newstate = CLOSED;
+		}
+		break;
+	}
+
+// if the state changes then always reset the counter to zero
+	if (newstate != state)
+	{
+		count = 0;
+		state = newstate;
+	}
+
 }
 
 
@@ -772,10 +849,10 @@ int main (void)
 				continue;                   // bad read - exit fast!!
 			supply_volts = (float)BatteryCtx.Volts;
 			humidity = (((sensor_volts / supply_volts) - 0.16) / 0.0062) / (1.0546 - 0.00216 * (temperature / 100.0));
-			if (humidity > 100)
-				humidity = 100;
-			else if (humidity < 0)
-				humidity = 0;
+			if (humidity > MAXHUMIDITY)
+				humidity = MAXHUMIDITY;
+			else if (humidity < MINHUMIDITY)
+				humidity = MINHUMIDITY;
 		}
 		else
 		{
@@ -790,7 +867,6 @@ int main (void)
 			gRain &= 4095;
 			last_rain = gRain;
 			eeprom_write_block ((const void *) &gRain, (void *) &eeRain, sizeof (gRain));
-			RAIN_ON();          // enable rain sensor input again
 		}
 
 
@@ -813,7 +889,7 @@ int main (void)
 			float wc, dp;
 			wc = windchill((float) temperature / 100, (float) Wind * 0.36);
 			dp = dewpoint((float)temperature / 100, (float) humidity);
-			kprintf("To: %2.1f WC: %2.1f DP: %2.1f Rtot: %4.1f RHo: %d WS: %3.1f DIR0: %3.1f\n", (float)temperature / 100, wc, dp, (float)gRain/10, humidity, (float)Wind * 0.36, (float)Dirn * 22.5);
+			kprintf("To: %2.1f WC: %2.1f DP: %2.1f Rtot: %4.1f RHo: %d WS: %3.1f DIR0: %3.1f\n", (float)temperature / 100, wc, dp, (float)gRain * 0.51826, humidity, (float)Wind * 0.36, (float)Dirn * 22.5);
 		}
 #endif
 
@@ -824,7 +900,7 @@ int main (void)
 //		set_wind(12, 0);
 
 		send_all();
-		timer_delay(2000);
+		timer_delay(100);
 	}
 }
 
