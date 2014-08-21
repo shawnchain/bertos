@@ -100,10 +100,12 @@ static void term_putchar(uint8_t c, struct Term *fds)
 				fds->addr += (CONFIG_TERM_COLS * CONFIG_TERM_ROWS);
 			break;
 
+#if CONFIG_TERM_SCROLL == 0
 		case TERM_DOWN:    /* Cursor down - no scroll but wraps to top */
 			fds->addr += CONFIG_TERM_COLS;
 			fds->addr %= CONFIG_TERM_COLS * CONFIG_TERM_ROWS;
 			break;
+#endif
 
 		case TERM_LEFT:    /* Cursor left - wrap top left to bottom right  */
 			if (--fds->addr < 0)
