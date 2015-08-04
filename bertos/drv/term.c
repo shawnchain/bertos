@@ -100,7 +100,7 @@ static void term_putchar(uint8_t c, struct Term *fds)
 				fds->addr += (CONFIG_TERM_COLS * CONFIG_TERM_ROWS);
 			break;
 
-#if CONFIG_TERM_SCROLL == 0
+#if CONFIG_TERM_SCROLL == 1
 		case TERM_DOWN:    /* Cursor down - no scroll but wraps to top */
 			fds->addr += CONFIG_TERM_COLS;
 			fds->addr %= CONFIG_TERM_COLS * CONFIG_TERM_ROWS;
@@ -219,6 +219,32 @@ static size_t term_write(struct KFile *fd, const void *_buf, size_t size)
 }
 
 
+#if CONFIG_TERM_SCROLL == 1
+static size_t term_read(struct KFile *fd, void *_buf, size_t size)
+{
+	Term *fds = TERM_CAST(fd);
+	uint8_t *buf = (uint8_t *)_buf;
+	const size_t i = size;
+
+	if (fds->readptr < 0)
+	{
+		fds->readptr = 0;
+		return 0;
+	}
+	while (size--)
+	{
+		*buf++ = fds->scrollbuff[fds->readptr];
+		fds->readptr++;
+		if (fds->readptr >= (CONFIG_TERM_ROWS * CONFIG_TERM_COLS))
+		{
+			fds->readptr = -1;
+			return i - size;
+		}
+	}
+	return i;
+}
+#endif
+
 /**
  * \brief Initialise the terminal context
  *
@@ -231,10 +257,14 @@ void term_init(struct Term *fds)
 
 	DB(fds->fd._type = KFT_TERM);
 	fds->fd.write = term_write;            // leave all but the write function as default
+#if CONFIG_TERM_SCROLL == 1
+	fds->fd.read = term_read;              // provide a read function if we have a scroll buffer
+#endif
 	fds->state = TERM_STATE_NORMAL;        // start at known point
 	lcd_display(1, 0, 0);                  // display on, cursor & blink off
 	fds->cursor = 0;                       // local copy of cursor & blink state
 	term_putchar(TERM_CLR, fds);           // clear screen, init address pointer
 
 }
+
 

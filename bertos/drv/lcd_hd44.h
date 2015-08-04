@@ -46,7 +46,6 @@
 
 #include "cfg/cfg_lcd_hd44.h"
 #include <cfg/compiler.h> /* For stdint types */
-#include "hw/hw_lcd_hd44.h"
 
 /**
  * \name Values for CONFIG_LCD_ROWS.
@@ -83,7 +82,11 @@
 #define LCD_CMD_SET8BIT          0x30
 #define LCD_CMD_DISPLAY_ON       0x0F   /**< Switch on display */
 #define LCD_CMD_DISPLAY_OFF      0x08   /**< Switch off display */
+#define LCD_CMD_ON_DISPLAY       0x04   /*   DB2: turn display on              */
+#define LCD_CMD_ON_CURSOR        0x02   /*   DB1: turn cursor on               */
+#define LCD_CMD_ON_BLINK         0x01   /*     DB0: blinking cursor ?          */
 #define LCD_CMD_CLEAR            0x01   /**< Clear display */
+#define LCD_CMD_HOME             0x02   /**< Clear display */
 #define LCD_CMD_CURSOR_BLOCK     0x0D   /**< Show cursor (block) */
 #define LCD_CMD_CURSOR_LINE      0x0F   /**< Show cursor (line) */
 #define LCD_CMD_CURSOR_OFF       0x0C   /**< Hide cursor */
@@ -94,20 +97,12 @@
 #define LCD_CMD_DISPLAY_SHIFT    0x18
 #define LCD_CMD_MOVESHIFT_LEFT   0x00
 #define LCD_CMD_MOVESHIFT_RIGHT  0x04
+
+#define LCD_RESP_BUSY            0x80   /* DB7: LCD is busy                    */
 /*\}*/
 
 /** Type for combined LCD cursor position (x,y). */
 typedef uint8_t lcdpos_t;
-
-INLINE void lcd_bl_on(void) 
-{
-	LCD_SET_BL;
-}
-
-INLINE void lcd_bl_off(void)
-{
-	LCD_CLR_BL;
-}
 
 void lcd_waitBusy(void);
 void lcd_moveTo(uint8_t addr);
@@ -117,6 +112,9 @@ void lcd_remapChar(const char *glyph, char code);
 void lcd_command(uint8_t value);
 void lcd_display(bool display, bool cursor, bool blink);
 void lcd_getdims(uint8_t * rows, uint8_t * cols);
+void lcd_backlight (uint8_t onoff);
+void lcd_clrscr (void);
+void lcd_home (void);
 void lcd_hw_init(void);
 void lcd_hw_test(void);
 

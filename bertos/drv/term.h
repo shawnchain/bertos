@@ -106,6 +106,7 @@ typedef struct Term
 	uint8_t cursor;           /** state of cursor (ON/OFF, blink) */
 #if CONFIG_TERM_SCROLL == 1
 	uint8_t scrollbuff[CONFIG_TERM_COLS * CONFIG_TERM_ROWS];
+	int16_t readptr;
 #endif
 } Term;
 
