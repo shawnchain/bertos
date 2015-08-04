@@ -20,15 +20,15 @@ References:
 #define LCD_PCF8574_DEVICEID  0 //device id, addr = pcf8574 base addr + LCD_PCF8574_DEVICEID
 
 
-#define LCD_DATA0_PIN    4            /**< pin for 4bit data bit 0     */
-#define LCD_DATA1_PIN    5            /**< pin for 4bit data bit 1     */
-#define LCD_DATA2_PIN    6            /**< pin for 4bit data bit 2     */
-#define LCD_DATA3_PIN    7            /**< pin for 4bit data bit 3     */
-#define LCD_RS_PIN       0            /**< pin  for RS line            */
-#define LCD_RW_PIN       1            /**< pin  for RW line            */
-#define LCD_E_PIN        2            /**< pin  for Enable line        */
-#define LCD_LED_PIN      3            /**< pin  for Led                */
-#define LCD_LED_POL      1            /**< polarity of Led pin (1=+ve) */
+#define LCD_DATA0_PIN    /* Implement me! */    /**< pin for 4bit data bit 0     */
+#define LCD_DATA1_PIN    /* Implement me! */    /**< pin for 4bit data bit 1     */
+#define LCD_DATA2_PIN    /* Implement me! */    /**< pin for 4bit data bit 2     */
+#define LCD_DATA3_PIN    /* Implement me! */    /**< pin for 4bit data bit 3     */
+#define LCD_RS_PIN       /* Implement me! */    /**< pin  for RS line            */
+#define LCD_RW_PIN       /* Implement me! */    /**< pin  for RW line            */
+#define LCD_E_PIN        /* Implement me! */    /**< pin  for Enable line        */
+#define LCD_LED_PIN      /* Implement me! */    /**< pin  for Led                */
+#define LCD_LED_POL      /* Implement me! */    /**< polarity of Led pin (1=+ve) */
 
 
 /*@}*/
