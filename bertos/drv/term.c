@@ -243,6 +243,15 @@ static size_t term_read(struct KFile *fd, void *_buf, size_t size)
 	}
 	return i;
 }
+
+static kfile_off_t term_seek(struct KFile *fd, kfile_off_t offset, KSeekMode whence)
+{
+	(void) offset;
+	(void) whence;
+	Term *fds = TERM_CAST(fd);
+	return fds->addr;
+}
+
 #endif
 
 /**
@@ -259,6 +268,7 @@ void term_init(struct Term *fds)
 	fds->fd.write = term_write;            // leave all but the write function as default
 #if CONFIG_TERM_SCROLL == 1
 	fds->fd.read = term_read;              // provide a read function if we have a scroll buffer
+	fds->fd.seek = term_seek;
 #endif
 	fds->state = TERM_STATE_NORMAL;        // start at known point
 	lcd_display(1, 0, 0);                  // display on, cursor & blink off
