@@ -34,7 +34,7 @@
  *
  * \author Davide Gironi
  *
-/*
+ *
  * $WIZ$ module_name = "nrf24l01"
  * $WIZ$ module_configuration = "bertos/cfg/cfg_nrf24l01.h"
  * $WIZ$ module_depends = "i2c"
