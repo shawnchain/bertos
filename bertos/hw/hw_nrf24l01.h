@@ -20,16 +20,16 @@ Please refer to LICENSE file for licensing information.
 #include "cfg/macros.h"   /* BV() */
 
 //CE and CSN port definitions
-#define NRF24L01_DDR DDRB
-#define NRF24L01_PORT PORTB
-#define NRF24L01_CE PB0
-#define NRF24L01_CSN PB1
+#define NRF24L01_DDR   /* Implement me */
+#define NRF24L01_PORT  /* Implement me */
+#define NRF24L01_CE    /* Implement me */
+#define NRF24L01_CSN   /* Implement me */
 
 //CE and CSN functions
-#define nrf24l01_CSNhi NRF24L01_PORT |= (1<<NRF24L01_CSN);
-#define nrf24l01_CSNlo NRF24L01_PORT &= ~(1<<NRF24L01_CSN);
-#define nrf24l01_CEhi NRF24L01_PORT |=  (1<<NRF24L01_CE);
-#define nrf24l01_CElo NRF24L01_PORT &= ~(1<<NRF24L01_CE);
+#define nrf24l01_CSNhi /* Implement me */
+#define nrf24l01_CSNlo /* Implement me */
+#define nrf24l01_CEhi  /* Implement me */
+#define nrf24l01_CElo  /* Implement me */
 
 
 

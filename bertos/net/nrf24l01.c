@@ -18,12 +18,13 @@ Please refer to LICENSE file for licensing information.
 
 #include <io/kfile.h>
 
+//include spi library functions
+#include <drv/spi_bitbang.h>
+
 #include "hw/hw_nrf24l01.h"
 #include "nrf24l01.h"
 #include "nrf24l01registers.h"
 
-//include spi library functions
-#include "spi.h"
 
 void nrf24l01_readregisters(uint8_t reg, uint8_t *value, uint8_t len);
 
@@ -35,14 +36,13 @@ static uint8_t nrf24l01_addr3[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP3;
 static uint8_t nrf24l01_addr4[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP4;
 static uint8_t nrf24l01_addr5[NRF24L01_ADDRSIZE] = NRF24L01_ADDRP5;
 static uint8_t nrf24l01_addrtx[NRF24L01_ADDRSIZE] = NRF24L01_ADDRTX;
-
 /*
  * read one register
  */
 static uint8_t nrf24l01_readregister(uint8_t reg) {
 	nrf24l01_CSNlo; //low CSN
-	spi_writereadbyte(NRF24L01_CMD_R_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
-    uint8_t result = spi_writereadbyte(NRF24L01_CMD_NOP); //read write register
+	spi_sendRecv(NRF24L01_CMD_R_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
+    uint8_t result = spi_sendRecv(NRF24L01_CMD_NOP); //read write register
     nrf24l01_CSNhi; //high CSN
     return result;
 }
@@ -53,9 +53,9 @@ static uint8_t nrf24l01_readregister(uint8_t reg) {
 void nrf24l01_readregisters(uint8_t reg, uint8_t *value, uint8_t len) {
 	uint8_t i = 0;
 	nrf24l01_CSNlo; //low CSN
-	spi_writereadbyte(NRF24L01_CMD_R_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
+	spi_sendRecv(NRF24L01_CMD_R_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
 	for(i=0; i<len; i++)
-		value[i] = spi_writereadbyte(NRF24L01_CMD_NOP); //read write register
+		value[i] = spi_sendRecv(NRF24L01_CMD_NOP); //read write register
 	nrf24l01_CSNhi; //high CSN
 }
 
@@ -64,8 +64,8 @@ void nrf24l01_readregisters(uint8_t reg, uint8_t *value, uint8_t len) {
  */
 static void nrf24l01_writeregister(uint8_t reg, uint8_t value) {
 	nrf24l01_CSNlo; //low CSN
-	spi_writereadbyte(NRF24L01_CMD_W_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
-	spi_writereadbyte(value); //write register
+	spi_sendRecv(NRF24L01_CMD_W_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
+	spi_sendRecv(value); //write register
 	nrf24l01_CSNhi; //high CSN
 }
 
@@ -75,9 +75,9 @@ static void nrf24l01_writeregister(uint8_t reg, uint8_t value) {
 static void nrf24l01_writeregisters(uint8_t reg, uint8_t *value, uint8_t len) {
 	uint8_t i = 0;
 	nrf24l01_CSNlo; //low CSN
-    spi_writereadbyte(NRF24L01_CMD_W_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
+    spi_sendRecv(NRF24L01_CMD_W_REGISTER | (NRF24L01_CMD_REGISTER_MASK & reg));
 	for(i=0; i<len; i++)
-		 spi_writereadbyte(value[i]); //write register
+		 spi_sendRecv(value[i]); //write register
 	nrf24l01_CSNhi; //high CSN
 }
 
@@ -136,7 +136,7 @@ void nrf24l01_settxaddr(uint8_t *addr) {
  */
 static void nrf24l01_flushRXfifo(void) {
 	nrf24l01_CSNlo; //low CSN
-	spi_writereadbyte(NRF24L01_CMD_FLUSH_RX);
+	spi_sendRecv(NRF24L01_CMD_FLUSH_RX);
 	nrf24l01_CSNhi; //high CSN
 }
 
@@ -145,7 +145,7 @@ static void nrf24l01_flushRXfifo(void) {
  */
 static void nrf24l01_flushTXfifo(void) {
 	nrf24l01_CSNlo; //low CSN
-	spi_writereadbyte(NRF24L01_CMD_FLUSH_TX);
+	spi_sendRecv(NRF24L01_CMD_FLUSH_TX);
 	nrf24l01_CSNhi; //high CSN
 }
 
@@ -199,7 +199,7 @@ void nrf24l01_printinfo(void) {
 uint8_t nrf24l01_getstatus(void) {
 	uint8_t status = 0;
 	nrf24l01_CSNlo; //low CSN
-	status = spi_writereadbyte(NRF24L01_CMD_NOP); //get status, send NOP request
+	status = spi_sendRecv(NRF24L01_CMD_NOP); //get status, send NOP request
 	nrf24l01_CSNhi; //high CSN
 	return status;
 }
@@ -225,9 +225,9 @@ void nrf24l01_read(uint8_t *data) {
 	uint8_t i = 0;
 	//read rx register
 	nrf24l01_CSNlo; //low CSN
-    spi_writereadbyte(NRF24L01_CMD_R_RX_PAYLOAD);
+    spi_sendRecv(NRF24L01_CMD_R_RX_PAYLOAD);
     for(i=0; i<NRF24L01_PAYLOAD; i++)
-    	data[i] = spi_writereadbyte(NRF24L01_CMD_NOP);
+    	data[i] = spi_sendRecv(NRF24L01_CMD_NOP);
     nrf24l01_CSNhi; //high CSN
     //reset register
     nrf24l01_writeregister(NRF24L01_REG_STATUS, (1<<NRF24L01_REG_RX_DR));
@@ -248,9 +248,9 @@ uint8_t nrf24l01_write(uint8_t *data) {
 
 	//write data
 	nrf24l01_CSNlo; //low CSN
-	spi_writereadbyte(NRF24L01_CMD_W_TX_PAYLOAD);
+	spi_sendRecv(NRF24L01_CMD_W_TX_PAYLOAD);
 	for (i=0; i<NRF24L01_PAYLOAD; i++)
-		spi_writereadbyte(data[i]);
+		spi_sendRecv(data[i]);
 	nrf24l01_CSNhi; //high CSN
 
 	//start transmission
