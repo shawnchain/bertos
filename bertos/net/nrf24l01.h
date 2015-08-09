@@ -110,7 +110,7 @@ extern void nrf24l01_settxaddr(uint8_t *addr);
 extern uint8_t nrf24_retransmissionCount(void);
 extern void nrf24l01_setRX(void);
 #if NRF24L01_PRINTENABLE == 1
-extern void nrf24l01_printinfo(void);
+extern void nrf24l01_printinfo(void(*prints)(const char *));
 #endif
 
 #endif

@@ -177,20 +177,22 @@ static void nrf24l01_setTX(void) {
 
 #if NRF24L01_PRINTENABLE == 1
 /*
- * print info
+ * print info - print output function supplied!!
  */
-void nrf24l01_printinfo(void) {
-	kprintf("info\r\n");
-	kprintf("STATUS: %02X\r\n", nrf24l01_getstatus());
-	kprintf("CONFIG: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_CONFIG));
-	kprintf("RF_CH: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_RF_CH));
-	kprintf("RF_SETUP: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_RF_SETUP));
-	kprintf("EN_AA: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_EN_AA));
-	kprintf("EN_RXADDR: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_EN_RXADDR));
-	kprintf("OBSERVE_TX: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_OBSERVE_TX));
-	kprintf("\r\n");
+void nrf24l01_printinfo(void(*prints)(const char *)) {
+	char buff[100];
+	prints("info\r\n");
+	sprintf(buff,"STATUS: %02X\r\n", nrf24l01_getstatus()); prints(buff);
+	sprintf(buff,"CONFIG: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_CONFIG)); prints(buff);
+	sprintf(buff,"RF_CH: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_RF_CH)); prints(buff);
+	sprintf(buff,"RF_SETUP: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_RF_SETUP)); prints(buff);
+	sprintf(buff,"EN_AA: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_EN_AA)); prints(buff);
+	sprintf(buff,"EN_RXADDR: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_EN_RXADDR)); prints(buff);
+	sprintf(buff,"OBSERVE_TX: %02X\r\n", nrf24l01_readregister(NRF24L01_REG_OBSERVE_TX)); prints(buff);
+	prints("\r\n");
 }
 #endif
+
 
 
 /*
