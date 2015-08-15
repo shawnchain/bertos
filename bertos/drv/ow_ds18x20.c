@@ -149,11 +149,16 @@ ow_ds18X20_read_temperature(uint8_t id[], int16_t * temperature)
 	bool ret;
 	uint32_t tmp, mask;
 	uint8_t shift = 0;
+	uint8_t family = id[0];
+
+	// if there is no ID (using SKIP code) then assume its a ds18b20 device
+	if (id == NULL)
+		family = DS1822_FAMILY_CODE;
 
 	if ((ret = read_scratchpad(id, sp)))
 	{
 		tmp = sp[0] | (sp[1] << 8);
-		switch (id[0])
+		switch (family)
 		{
 		case DS18B20_FAMILY_CODE:
 		case DS1822_FAMILY_CODE:
