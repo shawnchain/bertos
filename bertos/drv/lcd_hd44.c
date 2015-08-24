@@ -402,6 +402,16 @@ void lcd_display(bool display, bool cursor, bool blink )
 }
 
 
+void lcd_backlight (uint8_t onoff)
+{
+   if (onoff)
+      LCD_SET_BL
+   else
+      LCD_CLR_BL
+}
+
+
+
 #if 0 /* unused */
 void lcd_remapfont(void)
 {
