@@ -273,10 +273,10 @@ uint8_t nrf24l01_write(uint8_t *data) {
 	nrf24l01_writeregister(NRF24L01_REG_RF_CH, NRF24L01_CH);
 
 	//power down
-//	nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) & ~(1<<NRF24L01_REG_PWR_UP));
+	nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) & ~(1<<NRF24L01_REG_PWR_UP));
 
 	//set rx mode
-//	nrf24l01_setRX();
+	nrf24l01_setRX();
 
 	return ret;
 }
