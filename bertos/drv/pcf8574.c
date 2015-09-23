@@ -8,10 +8,7 @@ Please refer to LICENSE file for licensing information.
 */
 
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#define F_CPU CPU_FREQ
-#include <util/delay.h>
+#include <drv/timer.h>
 #include <drv/i2c.h>
 #include <cfg/cfg_i2c.h>
 #include "pcf8574.h"
@@ -27,7 +24,7 @@ pcf8574_init (void)
 #if PCF8574_I2CINIT == 1
    //init i2c
    i2c_hw_init (&i2c, 0, CONFIG_I2C_FREQ);
-   _delay_us (10);
+   timer_udelay (10);
 #endif
 
    //reset the pin status
