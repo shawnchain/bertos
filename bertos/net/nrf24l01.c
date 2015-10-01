@@ -11,8 +11,6 @@ Please refer to LICENSE file for licensing information.
 #include <string.h>
 #include <stdio.h>
 
-#include <io/kfile.h>
-
 //include spi library functions
 #include <drv/timer.h>
 #include <drv/spi_bitbang.h>

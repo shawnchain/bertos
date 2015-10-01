@@ -59,7 +59,6 @@ Please refer to LICENSE file for licensing information.
 #ifndef _NRF24L01_H_
 #define _NRF24L01_H_
 
-#include <avr/io.h>
 #include "cfg/cfg_nrf24l01.h"
 
 
