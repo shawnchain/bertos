@@ -347,12 +347,12 @@ static void nrf24l01_setcrclength(void) {
  * init nrf24l01
  */
 void nrf24l01_init(void) {
-	//setup port
-	NRF24L01_DDR |= (1<<NRF24L01_CSN); //output
-	NRF24L01_DDR |= (1<<NRF24L01_CE); //output
 
     spi_init(); //init spi
 
+    //initialise hardware ports
+    nrf24l01_hw_init;
+    // then set them to idle state
     nrf24l01_CElo; //low CE
     nrf24l01_CSNhi; //high CSN
 

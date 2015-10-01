@@ -31,6 +31,7 @@ Please refer to LICENSE file for licensing information.
 #define nrf24l01_CEhi  /* Implement me */
 #define nrf24l01_CElo  /* Implement me */
 
+#define nrf24l01_hw_init /* Implement me */
 
 
 #endif
