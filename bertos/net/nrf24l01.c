@@ -8,17 +8,13 @@ Please refer to LICENSE file for licensing information.
 */
 
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
-
-#define F_CPU CPU_FREQ
-#include <util/delay.h>
 #include <string.h>
 #include <stdio.h>
 
 #include <io/kfile.h>
 
 //include spi library functions
+#include <drv/timer.h>
 #include <drv/spi_bitbang.h>
 
 #include "hw/hw_nrf24l01.h"
@@ -160,7 +156,7 @@ void nrf24l01_setRX(void) {
 	nrf24l01_flushRXfifo(); //flush rx fifo
 	nrf24l01_flushTXfifo(); //flush tx fifo
 	nrf24l01_CEhi; //start listening
-	_delay_us(150); //wait for the radio to power up
+	timer_udelay(150); //wait for the radio to power up
 }
 
 /*
@@ -172,7 +168,7 @@ static void nrf24l01_setTX(void) {
 	nrf24l01_writeregister(NRF24L01_REG_CONFIG, nrf24l01_readregister(NRF24L01_REG_CONFIG) | (1<<NRF24L01_REG_PWR_UP)); //power up
 	nrf24l01_writeregister(NRF24L01_REG_STATUS, (1<<NRF24L01_REG_RX_DR) | (1<<NRF24L01_REG_TX_DS) | (1<<NRF24L01_REG_MAX_RT)); //reset status
 	nrf24l01_flushTXfifo(); //flush tx fifo
-	_delay_us(150); //wait for the radio to power up
+	timer_udelay(150); //wait for the radio to power up
 }
 
 #if NRF24L01_PRINTENABLE == 1
@@ -257,12 +253,12 @@ uint8_t nrf24l01_write(uint8_t *data) {
 
 	//start transmission
 	nrf24l01_CEhi; //high CE
-	_delay_us(15);
+	timer_udelay(15);
 	nrf24l01_CElo; //low CE
 
 	//stop if max_retries reached or send is ok
 	do {
-		_delay_us(10);
+		timer_udelay(10);
 	}
 	while( !(nrf24l01_getstatus() & (1<<NRF24L01_REG_MAX_RT | 1<<NRF24L01_REG_TX_DS)) );
 
@@ -362,7 +358,7 @@ void nrf24l01_init(void) {
     nrf24l01_CElo; //low CE
     nrf24l01_CSNhi; //high CSN
 
-    _delay_ms(5); //wait for the radio to init
+    timer_delay(5); //wait for the radio to init
 
     nrf24l01_setpalevel(); //set power level
     nrf24l01_setdatarate(); //set data rate
