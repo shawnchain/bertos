@@ -671,7 +671,7 @@ static void uart3_setparity(UNUSED_ARG(struct SerialHardware *, _hw), int parity
 
 #endif // AVR_HAS_UART3
 
-
+#if CONFIG_SPI_ENABLED
 static void spi_init(UNUSED_ARG(struct SerialHardware *, _hw), UNUSED_ARG(struct Serial *, ser))
 {
 	/*
@@ -784,6 +784,7 @@ static void spi_setparity(UNUSED_ARG(struct SerialHardware *, _hw), UNUSED_ARG(i
 {
 	// nop
 }
+#endif
 
 static bool tx_sending(struct SerialHardware* _hw)
 {
@@ -852,6 +853,7 @@ static const struct SerialHardwareVT UART3_VT =
 };
 #endif // AVR_HAS_UART3
 
+#if CONFIG_SPI_ENABLED
 static const struct SerialHardwareVT SPI_VT =
 {
 	C99INIT(init, spi_init),
@@ -861,6 +863,7 @@ static const struct SerialHardwareVT SPI_VT =
 	C99INIT(txStart, spi_starttx),
 	C99INIT(txSending, tx_sending),
 };
+#endif
 
 static struct AvrSerial UARTDescs[SER_CNT] =
 {
