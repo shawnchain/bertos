@@ -78,56 +78,28 @@
 	 * \{
 	 */
 
-/**
- * Get the state of an input pin
- *
- * \return I/O pin value
- */
-INLINE uint8_t ow_input_pin_state (void)
-{
-	return 0;
-}
 
-/**
- * Enable parasitic mode (set line high to power device)
- *
- */
-INLINE void ow_parasite_enable (void)
-{
-}
+#if OW_ONE_BUS == 1
 
-/**
- * Disable parasitic mode
- *
- */
-INLINE void ow_parasite_disable (void)
-{
-}
+/* when all devices are on the same I/O pin */
+#define OW_GET_IN()   ( /* Implement me! */ )
+#define OW_OUT_LOW()  ( /* Implement me! */ )
+#define OW_OUT_HIGH() ( /* Implement me! */ )
+#define OW_DIR_IN()   ( /* Implement me! */ )
+#define OW_DIR_OUT()  ( /* Implement me! */ )
 
-/**
- * Reset the bus, disable parasitic mode
- *
- * \return non zero = error code
- */
-INLINE uint8_t ow_reset_intern (void)
-{
-	return 0;
-}
+/* no extra overhead to allow for */
+#define OW_CONF_DELAYOFFSET 0
 
-/**
- * Function to output a bit
- *
- * \param b bit to output
- * \param with_parasite_enable flag to indicate leave the data line active high
- * \return bit read from I/O
- */
-INLINE uint8_t ow_bit_io_intern (uint8_t b, uint8_t with_parasite_enable)
-{
-	(void) (b);
-   (void) (with_parasite_enable);
-	return 0;
-}
+#else
 
+#if ( CPU_FREQ < 1843200 )
+#warning | Experimental multi-bus-mode is not tested for
+#warning | frequencies below 1,84MHz. Use OW_ONE_WIRE or
+#warning | faster clock-source (i.e. internal 2MHz R/C-Osc.).
+#endif
+#define OW_CONF_CYCLESPERACCESS 13
+#define OW_CONF_DELAYOFFSET ( (uint16_t)( ((OW_CONF_CYCLESPERACCESS) * 1000000L) / CPU_FREQ ) )
 
 /**
  * Set the port/data direction input pin dynamically
@@ -138,13 +110,21 @@ INLINE uint8_t ow_bit_io_intern (uint8_t b, uint8_t with_parasite_enable)
  * \param pin I/O pin (bit number on port)
  *
  */
-void ow_set_bus (volatile uint8_t * in, volatile uint8_t * out, volatile uint8_t * ddr, uint8_t pin)
+void ow_set_bus (volatile void * in, volatile void * out, volatile void * ddr, uint8_t pin)
 {
 	(void) in;
 	(void) out;
 	(void) ddr;
 	(void) pin;
 }
+
+#define OW_GET_IN()   ( /* Implement me! */ )
+#define OW_OUT_LOW()  ( /* Implement me! */ )
+#define OW_OUT_HIGH() ( /* Implement me! */ )
+#define OW_DIR_IN()   ( /* Implement me! */ )
+#define OW_DIR_OUT()  ( /* Implement me! */ )
+
+#endif
 
 	/** \} */ //defgroup 1wirehw_api
 
