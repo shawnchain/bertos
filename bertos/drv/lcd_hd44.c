@@ -54,9 +54,6 @@
 	#error Incomplete or missing LCD_READ/LCD_WRITE macros
 #endif
 
-/** Flag di stato del display */
-#define LCDF_BUSY  BV(7)
-
 #if CONFIG_LCD_ADDRESS_FAST == 1
 #define lcd_address(x) lcd_address[x]
 /**
@@ -298,7 +295,7 @@ void lcd_waitBusy(void)
 	for (;;)
 	{
 		uint8_t val = lcd_regRead();
-		if (!(val & LCDF_BUSY))
+		if (!(val & LCD_RESP_BUSY))
 			break;
 	}
 }

@@ -36,7 +36,7 @@
  *
  *
  * $WIZ$ module_name = "pcf8574"
- * $WIZ$ module_depends = "spi"
+ * $WIZ$ module_depends = "i2c"
  */
 
 /*

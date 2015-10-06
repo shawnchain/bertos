@@ -37,7 +37,7 @@
  *
  * $WIZ$ module_name = "nrf24l01"
  * $WIZ$ module_configuration = "bertos/cfg/cfg_nrf24l01.h"
- * $WIZ$ module_depends = "i2c"
+ * $WIZ$ module_depends = "spi"
  * $WIZ$ module_hw = "bertos/hw/hw_nrf24l01.h"
  */
 
