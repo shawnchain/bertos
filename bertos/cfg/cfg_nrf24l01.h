@@ -16,8 +16,6 @@ Please refer to LICENSE file for licensing information.
 #ifndef _CFG_NRF24L01_H_
 #define _CFG_NRF24L01_H_
 
-#include <avr/io.h>
-
 /**
  * Power setting
  * $WIZ$ type = "enum"
