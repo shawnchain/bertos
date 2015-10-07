@@ -27,7 +27,6 @@
  * \author Robin Gilks <g8ecj@gilks.org>
  *
  * $WIZ$ module_name = "term"
- * $WIZ$ module_depends = "lcd_hd44"
  * $WIZ$ module_configuration = "bertos/cfg/cfg_term.h"
  *
  */
@@ -37,7 +36,8 @@
 #define TERM_H_
 
 
-#include "lcd_hd44.h"
+#include <cfg/cfg_lcd_hd44780.h>
+#include "lcd_hd44780.h"
 
 #include "cfg/cfg_term.h"
 

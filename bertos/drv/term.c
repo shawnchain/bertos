@@ -40,7 +40,7 @@
 
 #include "term.h"
 
-#include "lcd_hd44.h"
+#include "lcd_hd44780.h"
 #include "timer.h"
 #include <string.h>
 
@@ -56,7 +56,7 @@
 
 
 #if 1
-#include "cfg/cfg_lcd_hd44.h"
+#include "cfg/cfg_lcd_hd44780.h"
 #if ((CONFIG_TERM_COLS != CONFIG_LCD_COLS) || (CONFIG_TERM_ROWS != CONFIG_LCD_ROWS))
 	#error "Terminal module only supports HD44780 LCD displays at present and they must be the same size!"
 #endif
