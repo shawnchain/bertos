@@ -383,7 +383,7 @@ lcd_hw_init (void)
    dataport = 0;
    pcf8574_setoutput (LCD_PCF8574_DEVICEID, dataport);
 
-   timer_udelay (16000);               /* wait 16ms or more after power-on       */
+   timer_delay (16);               /* wait 16ms or more after power-on       */
 
    /* initial write to lcd is 8bit */
    dataport |= BV (LCD_DATA1_PIN); // BV(LCD_FUNCTION)>>4;
