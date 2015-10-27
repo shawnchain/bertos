@@ -49,12 +49,17 @@
  */
 #define CONFIG_LCD_4BIT            0
 
+// make sure we are in 4 bit mode for i2c
+#if (CONFIG_LCD_I2C == 1) && (CONFIG_LCD_4BIT == 0)
+#warning If using an HD44780 LCD with I2C interface, 4-bit mode must be selected.
+#endif
+
 /**
  * Use a table to speed up LCD memory addressing.
  * This will use about 100 bytes of RAM.
  * $WIZ$ type = "boolean"
  */
-#define CONFIG_LCD_ADDRESS_FAST    1
+#define CONFIG_LCD_ADDRESS_FAST    0
 
 /**
  * Number of columns in LCD display. 
