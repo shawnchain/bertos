@@ -76,4 +76,6 @@ extern int8_t pcf8574_setoutputpinhigh (uint8_t deviceid, uint8_t pin);
 extern int8_t pcf8574_setoutputpinlow (uint8_t deviceid, uint8_t pin);
 extern int8_t pcf8574_getinput (uint8_t deviceid);
 extern int8_t pcf8574_getinputpin (uint8_t deviceid, uint8_t pin);
+
+/** \} */ 
 #endif

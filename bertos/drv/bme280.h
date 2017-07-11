@@ -215,7 +215,7 @@ int8_t bme280_soft_reset(const struct bme280_dev *dev);
  * @retval zero -> Success / +ve value -> Warning / -ve value -> Error
  */
 int8_t bme280_get_sensor_data(uint8_t sensor_comp, struct bme280_data *comp_data, struct bme280_dev *dev);
-
+/** \} */ 
 #ifdef __cplusplus
 }
 #endif /* End of CPP guard */
