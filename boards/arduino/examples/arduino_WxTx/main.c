@@ -1,11 +1,12 @@
 //---------------------------------------------------------------------------
-// Copyright (C) 2013 Robin Gilks
+// Copyright (C) 2013-2017 Robin Gilks
 //
 //
 //  WxTx.c   -   This program collects weather data from sensors and sends it to a LaCrosse base unit via RF
 //
 //  History:   1.0 - First release. 
 //             1.1 - Use state machine for rain tipper input and poll it rather than use external interrupt
+//             1.2 - Ditch 1-wire to use DHT22 to replace the DS2438 hygrometer & DS18B20 temperature sensor
 //
 //    This program is free software; you can redistribute it and/or modify
 //    it under the terms of the GNU General Public License as published by
@@ -25,6 +26,7 @@
 #include <cfg/debug.h>
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include <avr/eeprom.h>
@@ -37,12 +39,51 @@
 #include <drv/ow_ds2438.h>
 #include <drv/ow_ds18x20.h>
 
+#include <drv/i2c.h>
+#include <cfg/cfg_i2c.h>
+
+#include <drv/bme280.h>
+#include <drv/bme280_defs.h>
+
+#include "hw/hw_bme280.h"
+
+// Connections to Arduino                    DHT-22        BME280       1-wire
+// pin  4 Ground
+// pin  8 port PD5 (Arduino pin D5)          supply        supply       supply
+// pin  9 port PD6 (Arduino pin D6)          data          gnd          data (defined in cfg/cfg_1wire.h)
+// pin 24 port PC5 (Arduino pin ADC5/SCL)    n/c           scl          n/c
+// pin 23 port PC4 (Arduino pin ADC4/SDA)    gnd           sda          gnd
+// pin  7 port PD4 (Arduino pin D4) as rain tipper input 
+// pin 12 port PB1 (Arduino pin D9) as output for 433MHz transmitter
+// pin 14 port PB3 (Arduino pin D11) as wind sensor input 
+// pin 15 port PB4 (Arduino pin D12) as DTR signal to wind sensor
+// pin 16 port PB5 (Arduino pin D13) as onboard LED
+
+
+// DHT22 connections
+// Pin 1 - vcc
+// Pin 2 - data
+// Pin 3 - n/c
+// Pin 4 - gnd
+
+// BME280 connections
+// Pin 1 - vcc
+// Pin 2 - gnd
+// Pin 3 - scl
+// Pin 4 - sda
+
+
 // set to 1 if a TX23 rather than a TX20
 #define TX23   0
 // set to 1 if we want to check the invers data from the TX20/23
 #define CHKINV 0
 // local display (serial) on the Arduino
 #define LOCAL_DISPLAY 1
+// see if using 1-wire DS2438 or DHT22
+#define ONEWIRE 0
+#define DHT22   0
+#define BME280  1
+
 
 /*--------------------------------------------------------------------------------------
 TX20 and TX23 wind sensor protocol - as documented by john.geek.nz
@@ -271,45 +312,51 @@ bit     0123456789012345678901234567890123456789012345678901 0011223344556
 #define OFF_MAX      13
 
 int16_t EEMEM eeRain;
-volatile int16_t gRain;
+int16_t gRain;
+float temperature = 0, humidity = 0, pressure = 0;
 
 // initialised with static test data
-uint8_t data [IDX_MAX][OFF_MAX] = {
-	{ 0x0, 0x9, 0x4, 0x2, 0x2, 0x7, 0x8, 0x5, 0x3, 0x3, 0xA, 0xC, 0x1 },
-	{ 0x0, 0x9, 0x1, 0x2, 0x2, 0x7, 0x8, 0x5, 0x0, 0xD, 0xA, 0xF, 0x8 },
-	{ 0x0, 0x9, 0x2, 0x2, 0x2, 0x7, 0x8, 0x0, 0x8, 0xC, 0xF, 0x7, 0x8 },
-	{ 0x0, 0x9, 0x7, 0x2, 0x2, 0x7, 0x8, 0x0, 0x0, 0xC, 0xF, 0xF, 0xD }
+uint8_t data[IDX_MAX][OFF_MAX] = {
+   {0x0, 0x9, 0x4, 0x2, 0x2, 0x7, 0x8, 0x5, 0x3, 0x3, 0xA, 0xC, 0x1}
+   ,
+   {0x0, 0x9, 0x1, 0x2, 0x2, 0x7, 0x8, 0x5, 0x0, 0xD, 0xA, 0xF, 0x8}
+   ,
+   {0x0, 0x9, 0x2, 0x2, 0x2, 0x7, 0x8, 0x0, 0x8, 0xC, 0xF, 0x7, 0x8}
+   ,
+   {0x0, 0x9, 0x7, 0x2, 0x2, 0x7, 0x8, 0x0, 0x0, 0xC, 0xF, 0xF, 0xD}
 };
 
-uint8_t ids[4][OW_ROMCODE_SIZE];	// only expect to find 2 actually!!
+uint8_t ids[4][OW_ROMCODE_SIZE];        // only expect to find 2 actually!!
 int8_t battid = -1, thermid = -1;
+struct bme280_dev bme280dev;
 
 
+void readsensors (void);
 
 
-// port PB0 as rain tipper input on Arduino pin D8
+// port PD7 as rain tipper input on Arduino pin D7
 #define DEBOUNCE 16
 
 // set as input, pullup on, timer 2 on
 // PWM phase correct, clk/1, enable output compare int, period ~= 9uS 
 // need to debouce for ~= 200uS so count over 16 counts
 #define RAIN_INIT() do {  \
-	DDRB &= ~BV (0);       \
-	PORTB |= BV (0);       \
+	DDRD &= ~BV (4);       \
+	PORTD |= BV (4);       \
 	TCCR2A = BV(WGM21);    \
 	TCCR2B = BV(CS20);     \
 	OCR2A = 200;           \
 	TIMSK2 = BV(OCIE2A);   \
 	} while(0)
 // check the state of the tipper input
-#define RAIN_POLL() (PINB & BV(0))
+#define RAIN_POLL() (PIND & BV(4))
 // what states the reed switch on the rain tipper can be in
-enum rain_states 
+enum rain_states
 {
-	OPEN = 1,
-	CLOSING,
-	CLOSED,
-	OPENING
+   OPEN = 1,
+   CLOSING,
+   CLOSED,
+   OPENING
 };
 
 // port PB1 as output for 433MHz transmitter on Arduino pin D9
@@ -334,6 +381,66 @@ enum rain_states
 #define TX20_DATA() (PINB & BV(3))
 #define TX20_TIMEOUT 5000
 
+
+#if DHT22 == 1
+// port PC6 (Arduino pin ADC6) is the DHT-22
+// set as in input with pullup
+#define DHT22_INPUT() do {    \
+   DDRD &= ~BV (6);           \
+   PORTD |= BV (6);           \
+   } while(0)
+
+// set line as an output and set it low
+#define DHT22_OUTPUT() do {   \
+   DDRD |= BV (6);            \
+   PORTD &= ~BV (6);          \
+   } while(0)
+
+
+// port PD5 high, PC4 low to provide power
+#define DHT22_POWER() do {    \
+   DDRD |= BV (5);   \
+   DDRC |= BV (4);   \
+   PORTD |= BV (5);           \
+   PORTC &= ~BV (4);          \
+   } while(0)
+
+
+// return true/false for input D6
+#define DHT22_READ() ((PIND & BV(6)) ? true : false)
+#endif
+
+
+#if BME280 == 1
+// port PC7 high, PC4 low to provide power
+#define BME280_POWER() do {    \
+   DDRD |= BV (5) | BV (6);   \
+   PORTD |= BV (5);           \
+   PORTD &= ~BV (6);          \
+   } while(0)
+
+#endif
+
+
+#if ONEWIRE == 1
+// port PD5 high, PC4 low to provide power
+#define ONEWIRE_POWER() do {    \
+   DDRD |= BV (5);   \
+   DDRC |= BV (4);   \
+   PORTD |= BV (5);           \
+   PORTC &= ~BV (4);          \
+   } while(0)
+
+#endif
+
+#define LED_INIT() do {       \
+   DDRB |= BV (4);            \
+   } while(0)
+
+#define LED_TOGGLE() do {     \
+   PORTB ^= BV (5);           \
+   } while(0)
+
 // run timer1 at /8 of 16MHz clock to get microsecond timings
 #define START_US() do { \
 	TCCR1A = 0;          \
@@ -354,83 +461,121 @@ enum rain_states
 #define MINHUMIDITY 5
 
 
-static
-void init(void)
+
+I2c i2c;
+
+
+
+
+
+static void
+init (void)
 {
-	uint8_t diff, cnt = 0;
+#if ONEWIRE == 1
+   uint8_t diff, cnt = 0;
+#endif
+   /* Enable all the interrupts */
+   IRQ_ENABLE;
 
-	/* Enable all the interrupts */
-	IRQ_ENABLE;
-
-	/* Initialize debugging module (allow kprintf(), etc.) */
+   /* Initialize debugging module (allow kprintf(), etc.) */
 #if LOCAL_DISPLAY == 1
-	kdbg_init();
+   kdbg_init ();
 #endif
 
-	/* Initialize system timer */
-	timer_init();
+   /* Initialize system timer */
+   timer_init ();
 
-	// Signal change trigger interrupt for rain tipper on pcint0 D8 (PB0)
-	RAIN_INIT();
-	// get the last rainfall value
-	eeprom_read_block ((void *) &gRain, (const void *) &eeRain, sizeof (gRain));
+   // Signal change trigger interrupt for rain tipper on pcint0 D8 (PB0)
+   RAIN_INIT ();
+   // get the last rainfall value
+   eeprom_read_block ((void *) &gRain, (const void *) &eeRain, sizeof (gRain));
 
 
-	// output pin to transmit to base unit
-	RF_INIT();
+   // output pin to transmit to base unit
+   RF_INIT ();
 
-	// input pin(s) for the TX20 wind sensor
-	TX20_INIT();
+   // input pin(s) for the TX20 wind sensor
+   TX20_INIT ();
+
+   // get ready to toggle D13
+   LED_INIT ();
+
+#if ONEWIRE == 1
+   ONEWIRE_POWER ();         // same power pins as a DHT22
 
 // search for battery monitor chip (used by humidity sensor) and temperature sensor
 // we will only use the temperature sensor if we can't find a humidity sensor interface
-	for (diff = OW_SEARCH_FIRST, cnt = 0; diff != OW_LAST_DEVICE; cnt++)
-	{
-		diff = ow_rom_search (diff, ids[cnt]);
+   for (diff = OW_SEARCH_FIRST, cnt = 0; diff != OW_LAST_DEVICE; cnt++)
+   {
+      diff = ow_rom_search (diff, ids[cnt]);
 
-		if ((diff == OW_PRESENCE_ERR) || (diff == OW_DATA_ERR))
-		{
-			break;	// <--- early exit!
-		}
-		if (crc8 (ids[cnt], 8))
-			break;	// <--- suspect CRC - early exit!
+      if ((diff == OW_PRESENCE_ERR) || (diff == OW_DATA_ERR))
+      {
+         break;                 // <--- early exit!
+      }
+      if (crc8 (ids[cnt], 8))
+         break;                 // <--- suspect CRC - early exit!
 
-		switch (ids[cnt][0])
-		{
-		case SBATTERY_FAM:
-			battid = cnt;
-			break;
-		// digital thermometer chips will be used by preferene for temperature readings only
-		// can also be used alone but we will return a fixed or null humidity reading
-		case DS18S20_FAMILY_CODE:
-		case DS18B20_FAMILY_CODE:
-		case DS1822_FAMILY_CODE:
-			thermid = cnt;
-			break;
-		}
-	}
+      switch (ids[cnt][0])
+      {
+      case SBATTERY_FAM:
+         battid = cnt;
+         break;
+         // digital thermometer chips will be used by preferene for temperature readings only
+         // can also be used alone but we will return a fixed or null humidity reading
+      case DS18S20_FAMILY_CODE:
+      case DS18B20_FAMILY_CODE:
+      case DS1822_FAMILY_CODE:
+         thermid = cnt;
+         break;
+      }
+   }
+#elif DHT22 == 1
+   DHT22_POWER ();
+   DHT22_INPUT ();
 
+#elif BME280 == 1
+
+   // power up the sensor
+   BME280_POWER ();
+   timer_delay (10);
+
+   //init i2c
+   i2c_hw_init (&i2c, 0, CONFIG_I2C_FREQ);
+   timer_udelay (10);
+
+   bme280dev.id = BME280_I2C_ADDR_PRIM;
+   bme280dev.interface = BME280_I2C_INTF;
+   bme280dev.read = BME280_I2C_bus_read;
+   bme280dev.write = BME280_I2C_bus_write;
+   bme280dev.delay_ms = BME280_Time_Delay;
+
+   bme280_init (&bme280dev);
+
+#else
+   #error "No sensor type defined"
+#endif
 }
 
 
 // return a 16 bit int with up to 4 BCD digits in it formed from the binary parameter
-static
-uint16_t int2BCD(int16_t input)
+static uint16_t
+int2BCD (int16_t input)
 {
-	uint16_t high = 0;
-	int16_t divs[3] = { 1000, 100, 10};
-	int8_t i;
+   uint16_t high = 0;
+   int16_t divs[3] = { 1000, 100, 10 };
+   int8_t i;
 
-	for (i = 0; i < 3; i++)
-	{
-		while (input >= divs[i])
-		{
-			high++;
-			input -= divs[i];
-		}
-		high <<= 4;
-	}
-	return high | input;
+   for (i = 0; i < 3; i++)
+   {
+      while (input >= divs[i])
+      {
+         high++;
+         input -= divs[i];
+      }
+      high <<= 4;
+   }
+   return high | input;
 }
 
 
@@ -440,213 +585,216 @@ uint16_t int2BCD(int16_t input)
 // set the flags and repeat interval
 // create the Q bits from the D bits
 // calculate the CRC and fill it in
-static
-void finish_pkt(uint8_t index)
+static void
+finish_pkt (uint8_t index)
 {
-	uint8_t i, j = 0, x = 0;
+   uint8_t i, j = 0, x = 0;
 
-	// calculate the error detection 'X' bit. Bit is set if parity even in D[]
-	x = (data[index][OFF_D_hi] ^ data[index][OFF_D_lo] ^ data[index][OFF_D_ext]) & 0xf;
-	// this magic number is a 'lookup table' that maps the number of bits (i.e. parity) of the 4 bits in the nibble
-	// plus; shift the result to the correct place for the 'type' nibble
-	x = ((0x9669 >> x) & 1) << 2;
-	data[index][OFF_pre_hi] = 0x0;
-	data[index][OFF_pre_lo] = 0x9;
-	data[index][OFF_type] = x | index;
-	data[index][OFF_rand_hi] = 0x2;
-	data[index][OFF_rand_lo] = 0x2;
-	data[index][OFF_flags] = 0x7;
-	data[index][OFF_rpt] = 0x8;
-	data[index][OFF_Q_hi] = ~data[index][OFF_D_hi];
-	data[index][OFF_Q_lo] = ~data[index][OFF_D_lo];
-	// calculate the CRC
-	for (i = 0; i < OFF_crc; i++)
-	{
-		j += data[index][i];
-	}
-	data[index][OFF_crc] = j & 0xf;
+   // calculate the error detection 'X' bit. Bit is set if parity even in D[]
+   x = (data[index][OFF_D_hi] ^ data[index][OFF_D_lo] ^ data[index][OFF_D_ext]) & 0xf;
+   // this magic number is a 'lookup table' that maps the number of bits (i.e. parity) of the 4 bits in the nibble
+   // plus; shift the result to the correct place for the 'type' nibble
+   x = ((0x9669 >> x) & 1) << 2;
+   data[index][OFF_pre_hi] = 0x0;
+   data[index][OFF_pre_lo] = 0x9;
+   data[index][OFF_type] = x | index;
+   data[index][OFF_rand_hi] = 0x2;
+   data[index][OFF_rand_lo] = 0x2;
+   data[index][OFF_flags] = 0x7;
+   data[index][OFF_rpt] = 0x8;
+   data[index][OFF_Q_hi] = ~data[index][OFF_D_hi];
+   data[index][OFF_Q_lo] = ~data[index][OFF_D_lo];
+   // calculate the CRC
+   for (i = 0; i < OFF_crc; i++)
+   {
+      j += data[index][i];
+   }
+   data[index][OFF_crc] = j & 0xf;
 }
 
 // temperature goes into D12-D0 as 3 BCD digits with an offset of 300
-static
-void set_temp(int16_t temp)
+static void
+set_temp (int16_t temp)
 {
-	uint16_t t;
+   uint16_t t;
 
-	t = int2BCD(temp + 300);
-	data[IDX_temp][OFF_D_hi] = (t >> 8) & 0xf;
-	data[IDX_temp][OFF_D_lo] = (t >> 4) & 0xf;
-	data[IDX_temp][OFF_D_ext] = t & 0xf;
-	finish_pkt(IDX_temp);
+   t = int2BCD (temp + 300);
+   data[IDX_temp][OFF_D_hi] = (t >> 8) & 0xf;
+   data[IDX_temp][OFF_D_lo] = (t >> 4) & 0xf;
+   data[IDX_temp][OFF_D_ext] = t & 0xf;
+   finish_pkt (IDX_temp);
 }
 
 // RH goes into D12-D4 as 2 BCD digits
-static
-void set_RH(int16_t rh)
+static void
+set_RH (int16_t rh)
 {
-	uint16_t t;
+   uint16_t t;
 
-	t = int2BCD(rh);
-	data[IDX_rh][OFF_D_hi] = (t >> 4) & 0xf;
-	data[IDX_rh][OFF_D_lo] = t & 0xf;
+   t = int2BCD (rh);
+   data[IDX_rh][OFF_D_hi] = (t >> 4) & 0xf;
+   data[IDX_rh][OFF_D_lo] = t & 0xf;
 // don't ask about the <cr> char here!! its needed!!
-	data[IDX_rh][OFF_D_ext] = 0xd;
-	finish_pkt(IDX_rh);
+   data[IDX_rh][OFF_D_ext] = 0xd;
+   finish_pkt (IDX_rh);
 
 }
 
 // rain goes into D12-D0 as binary
-static
-void set_rain(int16_t rain)
+static void
+set_rain (int16_t rain)
 {
-	data[IDX_rain][OFF_D_hi] = (rain >> 8) & 0xf;
-	data[IDX_rain][OFF_D_lo] = (rain >> 4) & 0xf;
-	data[IDX_rain][OFF_D_ext] = rain & 0xf;
-	finish_pkt(IDX_rain);
+   data[IDX_rain][OFF_D_hi] = (rain >> 8) & 0xf;
+   data[IDX_rain][OFF_D_lo] = (rain >> 4) & 0xf;
+   data[IDX_rain][OFF_D_ext] = rain & 0xf;
+   finish_pkt (IDX_rain);
 
 }
 
 // wind goes into D12-D4 as binary, direction as binary in D3-D0
-static
-void set_wind(uint8_t dirn, int16_t speed)
+static void
+set_wind (uint8_t dirn, int16_t speed)
 {
 
-	data[IDX_wind][OFF_D_hi] = (speed >> 4) & 0xf;
-	data[IDX_wind][OFF_D_lo] = speed & 0xf;
-	data[IDX_wind][OFF_D_ext] = dirn;
-	finish_pkt(IDX_wind);
+   data[IDX_wind][OFF_D_hi] = (speed >> 4) & 0xf;
+   data[IDX_wind][OFF_D_lo] = speed & 0xf;
+   data[IDX_wind][OFF_D_ext] = dirn;
+   finish_pkt (IDX_wind);
 
 }
 
 
 // BeRTOS fast timer on Arduino is limited to ~1.0mS so use multiple times to get delays we want
-static
-void tx(uint8_t bit)
+static void
+tx (uint8_t bit)
 {
 
-	RF_ON();
-	timer_udelay(600);
-	if (bit == 0)
-		timer_udelay(600);
-	RF_OFF();
-	timer_udelay(600);
-	timer_udelay(600);
+   RF_ON ();
+   timer_udelay (600);
+   if (bit == 0)
+      timer_udelay (600);
+   RF_OFF ();
+   timer_udelay (600);
+   timer_udelay (600);
 }
 
 
 // send a single packet out
-static
-void send_pkt(uint8_t index)
+static void
+send_pkt (uint8_t index)
 {
-	uint8_t i, j, nibble, bit;
+   uint8_t i, j, nibble, bit;
 
-	for (i = 0; i < OFF_MAX; i++)
-	{
-		nibble = data[index][i];
-		for (j = 0; j < 4; j++)
-		{
-			bit = nibble & 8;
-			nibble <<= 1;
-			tx(bit);
-		}
-	}
+   for (i = 0; i < OFF_MAX; i++)
+   {
+      nibble = data[index][i];
+      for (j = 0; j < 4; j++)
+      {
+         bit = nibble & 8;
+         nibble <<= 1;
+         tx (bit);
+      }
+   }
 }
 
 
 // send all 4 packets out twice
-static
-void send_all (void)
+static void
+send_all (void)
 {
-	uint8_t i, j;
-	// send all pkts twice
-	for (i = 0; i < 2; i++)
-	{
-		for (j = 0; j < 4; j++)
-		{
-			send_pkt(j);
-			timer_delay(250);
-		}
-	}
+   uint8_t i, j;
+   // send all pkts twice
+   for (i = 0; i < 2; i++)
+   {
+      for (j = 0; j < 4; j++)
+      {
+         send_pkt (j);
+         timer_delay (250);
+      }
+   }
 }
 
 
 
 ISR (TIMER2_COMPA_vect)
 {
-	static uint8_t state = OPEN;
-	static int16_t count = 0;
-	uint8_t newstate = state;
+   static uint8_t state = OPEN;
+   static int16_t count = 0;
+   uint8_t newstate = state;
 
-	switch (state)
-	{
-	case OPEN:
-		if (RAIN_POLL() == 0)     // closing?
-		{
-			newstate = CLOSING;
-		}
-		break;
-	case CLOSING:
-		if (RAIN_POLL() == 0)     // still closing?
-		{
-			if (++count == DEBOUNCE)
-			{
-				newstate = CLOSED;
-			}
-		}
-		else                      // bouncing or opening
-		{
-			newstate = OPEN;
-		}
-		break;
-	case CLOSED:
-		if (RAIN_POLL() != 0)     // opening?
-		{
-			newstate = OPENING;
-		}
-		break;
-	case OPENING:
-		if (RAIN_POLL() != 0)    // still opening
-		{
-			if (++count == DEBOUNCE)
-			{
-				newstate = OPEN;
-				gRain++;            // we have seen one more tip
-			}
-		}
-		else
-		{
-			newstate = CLOSED;
-		}
-		break;
-	}
+   switch (state)
+   {
+   case OPEN:
+      if (RAIN_POLL () == 0)    // closing?
+      {
+         newstate = CLOSING;
+      }
+      break;
+   case CLOSING:
+      if (RAIN_POLL () == 0)    // still closing?
+      {
+         if (++count == DEBOUNCE)
+         {
+            newstate = CLOSED;
+         }
+      }
+      else                      // bouncing or opening
+      {
+         newstate = OPEN;
+      }
+      break;
+   case CLOSED:
+      if (RAIN_POLL () != 0)    // opening?
+      {
+         newstate = OPENING;
+      }
+      break;
+   case OPENING:
+      if (RAIN_POLL () != 0)    // still opening
+      {
+         if (++count == DEBOUNCE)
+         {
+            newstate = OPEN;
+            gRain++;            // we have seen one more tip
+         }
+      }
+      else
+      {
+         newstate = CLOSED;
+      }
+      break;
+   }
 
 // if the state changes then always reset the counter to zero
-	if (newstate != state)
-	{
-		count = 0;
-		state = newstate;
-	}
+   if (newstate != state)
+   {
+      count = 0;
+      state = newstate;
+   }
 
 }
 
 
 #if LOCAL_DISPLAY == 1
-static float dewpoint(float T, float h) {
-  float td;
-  // Simplified dewpoint formula from Lawrence (2005), doi:10.1175/BAMS-86-2-225
-  td = T - (100-h)*pow(((T+273.15)/300),2)/5 - 0.00135*pow(h-84,2) + 0.35;
-  return td;
+static float
+dewpoint (float T, float h)
+{
+   float td;
+   // Simplified dewpoint formula from Lawrence (2005), doi:10.1175/BAMS-86-2-225
+   td = T - (100 - h) * pow (((T + 273.15) / 300), 2) / 5 - 0.00135 * pow (h - 84, 2) + 0.35;
+   return td;
 }
 
-static float windchill(float temp, float wind)
+static float
+windchill (float temp, float wind)
 {
-  float wind_chill;
-  float wind2 = pow(wind, 0.16);
+   float wind_chill;
+   float wind2 = pow (wind, 0.16);
 
-  wind_chill = 13.12 + (0.6215 * temp) - (11.37 * wind2) + (0.3965 * temp * wind2);
-  wind_chill = (wind <= 4.8) ? temp : wind_chill;
-  wind_chill = (temp > 10) ? temp : wind_chill;
-  return wind_chill;
+   wind_chill = 13.12 + (0.6215 * temp) - (11.37 * wind2) + (0.3965 * temp * wind2);
+   wind_chill = (wind <= 4.8) ? temp : wind_chill;
+   wind_chill = (temp > 10) ? temp : wind_chill;
+   return wind_chill;
 }
 #endif
 
@@ -660,13 +808,14 @@ static float windchill(float temp, float wind)
 // 4 bits  checksum
 // 4 bits  inverted direction
 // 12 bit  inverted speed
-static int16_t read_tx20 (int16_t * Dirn, int16_t * Wind)
+static int16_t
+read_tx20 (int16_t * Dirn, int16_t * Wind)
 {
-	ticks_t timeout = timer_clock();
-	uint8_t i, crc, sync;
-	uint16_t halfbit, dirn, wind;
+   ticks_t timeout = timer_clock ();
+   uint8_t i, crc, sync;
+   uint16_t halfbit, dirn, wind;
 #if CHKINV
-	int16_t temp;
+   int16_t temp;
 #endif
 
 // while  overall timeout of ~3 seconds
@@ -678,229 +827,356 @@ static int16_t read_tx20 (int16_t * Dirn, int16_t * Wind)
 // read next 20 bits
 
 // look for data start
-	while (TX20_DATA() != 0)
-	{
-		if (timer_clock() - timeout > ms_to_ticks (TX20_TIMEOUT))
-		{
-			return -1;
-		}
-	}
+   while (TX20_DATA () != 0)
+   {
+      if (timer_clock () - timeout > ms_to_ticks (TX20_TIMEOUT))
+      {
+         return -1;
+      }
+   }
 
 // start microsecond timer, wait for data to change again
-	START_US();
-	while (TX20_DATA() == 0)
-	{
-		if (timer_clock() - timeout > ms_to_ticks (TX20_TIMEOUT))
-		{
-			return -1;
-		}
-	}
+   START_US ();
+   while (TX20_DATA () == 0)
+   {
+      if (timer_clock () - timeout > ms_to_ticks (TX20_TIMEOUT))
+      {
+         return -1;
+      }
+   }
 
 // determine halfbit period - should have time of 2 bits
-	halfbit = (READ_US() / 4);
-	timer_udelay(halfbit);
-	// read rest of sync
-	sync = 0;
-	for (i = 0; i < 3; i++)
-	{
-		sync >>= 1;
-		sync |= TX20_DATA() ? 16 : 0;
-		timer_udelay(halfbit);
-		timer_udelay(halfbit);
-	}
-	if (sync != 0b00100)
-	{
-//		kprintf("Bad sync %d\n", sync);
-		return -1;
-	}
+   halfbit = (READ_US () / 4);
+   timer_udelay (halfbit);
+   // read rest of sync
+   sync = 0;
+   for (i = 0; i < 3; i++)
+   {
+      sync >>= 1;
+      sync |= TX20_DATA ()? 16 : 0;
+      timer_udelay (halfbit);
+      timer_udelay (halfbit);
+   }
+   if (sync != 0b00100)
+   {
+//              kprintf("Bad sync %d\n", sync);
+      return -1;
+   }
 
 // read wind direction - note the reversed shift to get endianness right
-	dirn = 0;
-	for (i = 0; i < 4; i++)
-	{
-		dirn >>= 1;
-		dirn |= TX20_DATA() ? 8 : 0;
-		timer_udelay(halfbit);
-		timer_udelay(halfbit);
-	}
+   dirn = 0;
+   for (i = 0; i < 4; i++)
+   {
+      dirn >>= 1;
+      dirn |= TX20_DATA ()? 8 : 0;
+      timer_udelay (halfbit);
+      timer_udelay (halfbit);
+   }
 
 // read wind speed
-	wind = 0;
-	for (i = 0; i < 12; i++)
-	{
-		wind >>= 1;
-		wind |= TX20_DATA() ? 2048 : 0;
-		timer_udelay(halfbit);
-		timer_udelay(halfbit);
-	}
+   wind = 0;
+   for (i = 0; i < 12; i++)
+   {
+      wind >>= 1;
+      wind |= TX20_DATA ()? 2048 : 0;
+      timer_udelay (halfbit);
+      timer_udelay (halfbit);
+   }
 
 // read checksum
-	crc = 0;
-	for (i = 0; i < 4; i++)
-	{
-		crc >>= 1;
-		crc |= TX20_DATA() ? 8 : 0;
-		timer_udelay(halfbit);
-		timer_udelay(halfbit);
-	}
+   crc = 0;
+   for (i = 0; i < 4; i++)
+   {
+      crc >>= 1;
+      crc |= TX20_DATA ()? 8 : 0;
+      timer_udelay (halfbit);
+      timer_udelay (halfbit);
+   }
 
 // test checksum
-	i = (dirn + ((wind >> 8) & 0xf) + ((wind >> 4) & 0xf) + (wind & 0xf)) & 0xf;
-	if (i != crc)
-	{
-//		kprintf("read crc %d my crc %d dirn %d wind %d \n", crc, i, dirn, wind);
-		return -1;
-	}
+   i = (dirn + ((wind >> 8) & 0xf) + ((wind >> 4) & 0xf) + (wind & 0xf)) & 0xf;
+   if (i != crc)
+   {
+//              kprintf("read crc %d my crc %d dirn %d wind %d \n", crc, i, dirn, wind);
+      return -1;
+   }
 
 // seems pretty reliable - no need to complicate things with checking the inverse values...
 #if CHKINV == 1
-	temp = 0;
-	for (i = 0; i < 4; i++)
-	{
-		temp >>= 1;
-		temp |= TX20_DATA() ? 0 : 8;
-		timer_udelay(halfbit);
-		timer_udelay(halfbit);
-	}
-	if (temp != gDirn)
-	{
-		kprintf("Inv dirn error %d\n", temp);
-		return -1;
-	}
+   temp = 0;
+   for (i = 0; i < 4; i++)
+   {
+      temp >>= 1;
+      temp |= TX20_DATA ()? 0 : 8;
+      timer_udelay (halfbit);
+      timer_udelay (halfbit);
+   }
+   if (temp != gDirn)
+   {
+      kprintf ("Inv dirn error %d\n", temp);
+      return -1;
+   }
 
-	temp = 0;
-	for (i = 0; i < 12; i++)
-	{
-		temp >>= 1;
-		temp |= TX20_DATA() ? 0 : 2048;
-		timer_udelay(halfbit);
-		timer_udelay(halfbit);
-	}
-	if (temp != gWind)
-	{
-		kprintf("Inv wind error %d\n", temp);
-		return -1;
-	}
+   temp = 0;
+   for (i = 0; i < 12; i++)
+   {
+      temp >>= 1;
+      temp |= TX20_DATA ()? 0 : 2048;
+      timer_udelay (halfbit);
+      timer_udelay (halfbit);
+   }
+   if (temp != gWind)
+   {
+      kprintf ("Inv wind error %d\n", temp);
+      return -1;
+   }
 #endif
 
-	// all OK, return result
-	*Dirn = dirn;
-	*Wind = wind;
-	return 1;
+   // all OK, return result
+   *Dirn = dirn;
+   *Wind = wind;
+   return 1;
 
 }
 
+void
+readsensors (void)
+{
+#if ONEWIRE == 1
+   float supply_volts, sensor_volts;
+   CTX2438_t BatteryCtx;
+   int16_t rawtemperature = 0;
+
+   if (thermid >= 0)
+   {
+      // 10 bit resolution is enough (more is much slower!!)
+      // in the range -10 to +85 the accuracy is only +/-0.5C
+      ow_ds18x20_resolution (ids[thermid], 10);
+      ow_ds18X20_start (ids[thermid], false);
+      while (ow_busy ());
+      ow_ds18X20_read_temperature (ids[thermid], &rawtemperature);
+      temperature = rawtemperature;
+   }
+
+   if (battid >= 0)
+   {
+      // default initialise gets volts from the Vad pin
+      ow_ds2438_init (ids[battid], &BatteryCtx, RSHUNT, CHARGE);
+      ow_ds2438_doconvert (ids[battid]);
+      if (!ow_ds2438_readall (ids[battid], &BatteryCtx))
+         return;           // bad read - exit fast!!
+      // if no DS18x20 temperature sensor then use this one
+      // its only +/-2C but its better than nothing!!
+      if (thermid < 0)
+         temperature = BatteryCtx.Temp;
+      sensor_volts = (float) BatteryCtx.Volts;
+
+      // switch voltage sense to supply pin
+      ow_ds2438_setup (ids[battid], CONF2438_IAD | CONF2438_AD | CONF2438_CA | CONF2438_EE);
+      ow_ds2438_doconvert (ids[battid]);
+      if (!ow_ds2438_readall (ids[battid], &BatteryCtx))
+         return;           // bad read - exit fast!!
+      supply_volts = (float) BatteryCtx.Volts;
+      humidity = (((sensor_volts / supply_volts) - 0.16) / 0.0062) / (1.0546 - 0.00216 * (temperature / 100.0));
+   }
+/* HIH-5030
+VOUT=(VSUPPLY)(0.00636(sensor RH) + 0.1515), typical at 25 C
+Temperature compensation True RH = (Sensor RH)/(1.0546 0.00216T), T
+*/
 
 
+#elif DHT22 == 1
+
+
+   static ticks_t lastReadTime = 0;
+   static int16_t average = 220;
+   int16_t i;
+   uint16_t rawHumidity = 0;
+   uint16_t rawTemperature = 0;
+   uint16_t data = 0;
+   uint8_t age;
+
+   // Make sure we don't poll the sensor too often
+   // - Max sample rate DHT11 is 1 Hz   (duty cicle 1000 ms)
+   // - Max sample rate DHT22 is 0.5 Hz (duty cicle 2000 ms)
+   ticks_t startTime = timer_clock ();
+   if ((startTime - lastReadTime) < 2100L)
+      return;
+
+   LED_TOGGLE ();
+
+   lastReadTime = startTime;
+
+   temperature = NAN;
+   humidity = NAN;
+
+   // Request sample
+   DHT22_OUTPUT ();             // Send start signal
+   timer_delay (20);
+   DHT22_INPUT ();              // Switch bus to receive data
+
+   // We're going to read 83 edges:
+   // - First a FALLING, RISING, and FALLING edge for the start bit
+   // - Then 40 bits: RISING and then a FALLING edge per bit
+   // To keep our code simple, we accept any HIGH or LOW reading if it's max 85 usecs long
+   // _US runs on a 16 bit 2MHz clock so can handle times up to ~32ms, we require up to 42 * (50 + 70) == ~0.5ms
+
+   START_US ();
+
+   for (i = -3; i < 2 * 40; i++)
+   {
+      startTime = READ_US ();
+
+      do
+      {
+         age = READ_US () - startTime;
+         if (age > 90)
+            return;
+      }  while (DHT22_READ() == (i & 1) ? true : false);
+
+      if (i >= 0 && (i & 1))
+      {
+         // Now we are being fed our 40 bits
+         data <<= 1;
+
+         // A zero max 30 usecs, a one at least 68 usecs.
+         if (age > 30)
+            data |= 1;          // we got a one
+      }
+
+      switch (i)
+      {
+      case 31:
+         rawHumidity = data;
+         break;
+      case 63:
+         rawTemperature = data;
+         data = 0;
+         break;
+      }
+   }
+
+
+   // Verify checksum
+
+   if ((uint8_t) (((uint8_t) rawHumidity) + (rawHumidity >> 8) + ((uint8_t) rawTemperature) + (rawTemperature >> 8)) != data)
+      return;
+
+   // Store readings
+   humidity = rawHumidity * 0.1;
+
+   if (rawTemperature & 0x8000)
+      rawTemperature = -(int16_t) (rawTemperature & 0x7FFF);
+
+   // if temperature difference to running average less than 0.5c then update temperature
+   // prevents bad values of 0 getting through
+   if (abs(average - rawTemperature) < 5)
+      temperature = (int16_t) rawTemperature;
+#define alpha 3
+   average = (alpha * (uint16_t) rawTemperature + (100 - alpha) * (uint16_t) average) / 100;
+
+
+#elif BME280 == 1
+
+   struct bme280_data comp_data;
+   uint8_t settings_sel;
+
+   bme280dev.settings.osr_h = BME280_OVERSAMPLING_4X;
+   bme280dev.settings.osr_p = BME280_OVERSAMPLING_4X;
+   bme280dev.settings.osr_t = BME280_OVERSAMPLING_4X;
+
+   settings_sel = BME280_OSR_PRESS_SEL|BME280_OSR_TEMP_SEL|BME280_OSR_HUM_SEL;
+   bme280_set_sensor_settings(settings_sel, &bme280dev);
+   bme280_set_sensor_mode(BME280_FORCED_MODE, &bme280dev);
+   /* Give some delay for the sensor to go into normal mode */
+   bme280dev.delay_ms(5);
+
+   if (bme280_get_sensor_data(BME280_PRESS | BME280_HUM | BME280_TEMP, &comp_data, &bme280dev) == 0)
+   {
+      temperature = comp_data.temperature / 10;
+      humidity = comp_data.humidity / 1000;
+      pressure = comp_data.pressure / 10000;
+//      kprintf("Raw temp %ld, hum %ld, press %ld\n", comp_data.temperature,  comp_data.humidity, comp_data.pressure);
+   }
+#endif
+}
 
 
 
 // initialise hardware I/O and timers
 // poll serial port for commands
 // send data packets to transmitter
-int main (void)
+int
+main (void)
 {
-	int16_t last_rain;
-	int16_t temperature = 0, humidity = 0, Dirn = 0, Wind = 0;
-	float supply_volts, sensor_volts;
-	CTX2438_t BatteryCtx;
+   int16_t last_rain;
+   int16_t Dirn = 0, Wind = 0;
 
-	init();
+   init ();
 
-	// if a TX20 (rather than a TX23) then set DTR low
-	// TX23 requires a waggle (see later)
+   // if a TX20 (rather than a TX23) then set DTR low
+   // TX23 requires a waggle (see later)
 #if TX23 == 0
-	TX20_ON();
+   TX20_ON ();
 #endif
 
-	// get the last rainfall value
-	last_rain = gRain;
+   // get the last rainfall value
+   last_rain = gRain;
 
-	while (1)
-	{
+   while (1)
+   {
+      readsensors ();
 
-		if (thermid >= 0)
-		{
-			// 10 bit resolution is enough (more is much slower!!)
-			// in the range -10 to +85 the accuracy is only +/-0.5C
-			ow_ds18x20_resolution(ids[thermid], 10);
-			ow_ds18X20_start (ids[thermid], false);
-			while (ow_busy ());
-			ow_ds18X20_read_temperature (ids[thermid], &temperature);
-		}
+      if (humidity > MAXHUMIDITY)
+         humidity = MAXHUMIDITY;
+      else if (humidity < MINHUMIDITY)
+         humidity = MINHUMIDITY;
 
-		if (battid >= 0)
-		{
-			// default initialise gets volts from the Vad pin
-			ow_ds2438_init (ids[battid], &BatteryCtx, RSHUNT, CHARGE);
-			ow_ds2438_doconvert (ids[battid]);
-			if (!ow_ds2438_readall (ids[battid], &BatteryCtx))
-				continue;                   // bad read - exit fast!!
-			// if no DS18x20 temperature sensor then use this one
-			// its only +/-2C but its better than nothing!!
-			if (thermid < 0)
-				temperature = BatteryCtx.Temp;
-			sensor_volts = (float)BatteryCtx.Volts;
-
-			// switch voltage sense to supply pin
-			ow_ds2438_setup(ids[battid], CONF2438_IAD | CONF2438_AD | CONF2438_CA | CONF2438_EE);
-			ow_ds2438_doconvert (ids[battid]);
-			if (!ow_ds2438_readall (ids[battid], &BatteryCtx))
-				continue;                   // bad read - exit fast!!
-			supply_volts = (float)BatteryCtx.Volts;
-			humidity = (((sensor_volts / supply_volts) - 0.16) / 0.0062) / (1.0546 - 0.00216 * (temperature / 100.0));
-			if (humidity > MAXHUMIDITY)
-				humidity = MAXHUMIDITY;
-			else if (humidity < MINHUMIDITY)
-				humidity = MINHUMIDITY;
-		}
-		else
-		{
-			// the minimum value the console will display is 10%RH
-			// set to 0 if you want a blank section in the display!!
-			humidity = 0;
-		}
-
-		// if the rain changed then save the new value in eeprom
-		if (gRain != last_rain)
-		{
-			gRain &= 4095;
-			last_rain = gRain;
-			eeprom_write_block ((const void *) &gRain, (void *) &eeRain, sizeof (gRain));
-		}
+      // if the rain changed then save the new value in eeprom
+      if (gRain != last_rain)
+      {
+         gRain &= 4095;
+         last_rain = gRain;
+         eeprom_write_block ((const void *) &gRain, (void *) &eeRain, sizeof (gRain));
+      }
 
 
-		set_temp(temperature / 10);
-		set_RH(humidity);
-		set_rain(gRain);
+      set_temp (temperature);
+      set_RH (humidity);
+      set_rain (gRain);
 
 // if a TX23 then we have to waggle 'DTR' first. For a TX20 we only have to do it once at startup
 #if TX23 == 1
-		TX20_ON();
-		timer_delay(500);
-		TX20_OFF();
-		timer_delay(2000);
+      TX20_ON ();
+      timer_delay (500);
+      TX20_OFF ();
+      timer_delay (2000);
 #endif
-		if (read_tx20(&Dirn, &Wind) > 0)
-			set_wind(Dirn, Wind);
+      if (read_tx20(&Dirn, &Wind) > 0)
+         set_wind(Dirn, Wind);
 
 #if LOCAL_DISPLAY == 1
-		{
-			float wc, dp;
-			wc = windchill((float) temperature / 100, (float) Wind * 0.36);
-			dp = dewpoint((float)temperature / 100, (float) humidity);
-			kprintf("To: %2.1f WC: %2.1f DP: %2.1f Rtot: %4.1f RHo: %d WS: %3.1f DIR0: %3.1f\n", (float)temperature / 100, wc, dp, (float)gRain * 0.51826, humidity, (float)Wind * 0.36, (float)Dirn * 22.5);
-		}
+      {
+         float wc, dp;
+         float height = 90, p;
+         wc = windchill ((float) temperature / 100, (float) Wind * 0.36);
+         dp = dewpoint ((float) temperature / 100, (float) humidity);
+         // P = ((Po * 1000) * Math.exp((g*Zg)/(Rd *  (Tv_avg + 273.15))))/1000;
+         p = ((pressure * 1000) * exp((9.8 * height)/(287 *  ((temperature / 10) + 273.15))))/1000;
+
+         kprintf ("To: %2.2f WC: %2.1f DP: %2.1f Rtot: %4.1f RHo: %2.2f WS: %3.1f DIR0: %3.1f RP: %4.1f  P0: %4.1f\n",
+                  (float) temperature / 10, wc, dp, (float) gRain * 0.51826, humidity, (float) Wind * 0.36,
+                  (float) Dirn * 22.5, pressure, p);
+      }
 #endif
 
 // test data while debugging!!
-//		set_temp(233);
-//		set_RH(50);
-//		set_rain(140);
-//		set_wind(12, 0);
+//              set_temp(233);
+//              set_RH(50);
+//              set_rain(140);
+//              set_wind(12, 0);
 
-		send_all();
-		timer_delay(100);
-	}
+      send_all ();
+      timer_delay (100);
+   }
 }
-
