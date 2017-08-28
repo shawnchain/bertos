@@ -41,8 +41,28 @@
 #include <cfg/debug.h>
 
 #include <io/stm32.h>
+#include <drv/clock_stm32.h>
 
-
+void stm32_gpioPortClock (struct stm32_gpio *base, bool enable) {
+	if (enable) {
+	  if      (base == (struct stm32_gpio *)GPIOA_BASE) RCC->APB2ENR |=  RCC_APB2_GPIOA;
+	  else if (base == (struct stm32_gpio *)GPIOB_BASE) RCC->APB2ENR |=  RCC_APB2_GPIOB;
+	  else if (base == (struct stm32_gpio *)GPIOC_BASE) RCC->APB2ENR |=  RCC_APB2_GPIOC;
+	  else if (base == (struct stm32_gpio *)GPIOD_BASE) RCC->APB2ENR |=  RCC_APB2_GPIOD;
+	  else if (base == (struct stm32_gpio *)GPIOE_BASE) RCC->APB2ENR |=  RCC_APB2_GPIOE;
+	  else if (base == (struct stm32_gpio *)GPIOF_BASE) RCC->APB2ENR |=  RCC_APB2_GPIOF;
+	  else if (base == (struct stm32_gpio *)GPIOG_BASE) RCC->APB2ENR |=  RCC_APB2_GPIOG;
+	} else {
+	  if      (base == (struct stm32_gpio *)GPIOA_BASE) RCC->APB2ENR &= ~RCC_APB2_GPIOA;
+	  else if (base == (struct stm32_gpio *)GPIOB_BASE) RCC->APB2ENR &= ~RCC_APB2_GPIOB;
+	  else if (base == (struct stm32_gpio *)GPIOC_BASE) RCC->APB2ENR &= ~RCC_APB2_GPIOC;
+	  else if (base == (struct stm32_gpio *)GPIOD_BASE) RCC->APB2ENR &= ~RCC_APB2_GPIOD;
+	  else if (base == (struct stm32_gpio *)GPIOE_BASE) RCC->APB2ENR &= ~RCC_APB2_GPIOE;
+	  else if (base == (struct stm32_gpio *)GPIOF_BASE) RCC->APB2ENR &= ~RCC_APB2_GPIOF;
+	  else if (base == (struct stm32_gpio *)GPIOG_BASE) RCC->APB2ENR &= ~RCC_APB2_GPIOG;
+	}
+  }
+  
 /**
  * Configure a GPIO pin
  *

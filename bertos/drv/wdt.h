@@ -46,6 +46,9 @@
 #include "cfg/cfg_wdt.h"
 
 #include <cfg/compiler.h> // INLINE
+#include <cpu/detect.h>
+#include <cpu/attr.h>
+#include <cfg/os.h>
 
 /* Configury sanity check */
 #if !defined(CONFIG_WATCHDOG) || (CONFIG_WATCHDOG != 0 && CONFIG_WATCHDOG != 1)

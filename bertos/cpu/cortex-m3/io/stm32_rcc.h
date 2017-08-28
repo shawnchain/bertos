@@ -231,12 +231,14 @@
 #define RCC_APB2_GPIOC             (0x00000010)
 #define RCC_APB2_GPIOD             (0x00000020)
 #define RCC_APB2_GPIOE             (0x00000040)
+#define RCC_APB2_GPIOF             (0x00000080)
+#define RCC_APB2_GPIOG             (0x00000100)
 #define RCC_APB2_ADC1              (0x00000200)
 #define RCC_APB2_ADC2              (0x00000400)
 #define RCC_APB2_TIM1              (0x00000800)
 #define RCC_APB2_SPI1              (0x00001000)
 #define RCC_APB2_USART1            (0x00004000)
-#define RCC_APB2_ALL               (0x00005E7D)
+#define RCC_APB2_ALL               (0x00005FFD)
 
 /**
  * RCC register:  BCDR

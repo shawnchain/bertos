@@ -146,7 +146,7 @@ void clock_init(void)
 	RCC->CFGR |= RCC_SYSCLK_DIV1;
 
 	/* Set 1 wait state for the flash memory */
-	*(reg32_t *)FLASH_BASE = 0x12;
+	*(reg32_t *)FLASH_R_BASE = 0x12; // what the heck is this?
 
 	/* Clock the system from the PLL */
 	rcc_set_clock_source(RCC_SYSCLK_PLLCLK);

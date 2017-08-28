@@ -56,6 +56,13 @@
 
 #define EMB_FLASH                ((struct stm32_flash*)FLASH_R_BASE)
 
+#define UNLOCK_FLASH() \
+EMB_FLASH->KEYR = FLASH_KEY1; \
+EMB_FLASH->KEYR = FLASH_KEY2
+
+#define LOCK_FLASH() \
+EMB_FLASH->CR |= CR_LOCK_SET
+
 struct FlashHardware
 {
 	uint8_t status;
@@ -211,6 +218,12 @@ static size_t stm32_flash_readDirect(struct KBlock *blk, block_idx_t idx, void *
 	return size;
 }
 
+static int stm32_flash_close(struct KBlock *b){
+	kblock_swClose(b);
+	LOCK_FLASH();
+	LOG_INFO("flash device closed and locked");
+	return 0;
+}
 
 INLINE bool stm32_writeWord(struct KBlock *blk, uint32_t addr, uint16_t data)
 {
@@ -281,7 +294,7 @@ static const KBlockVTable flash_stm32_buffered_vt =
 	.load = kblock_swLoad,
 	.store = kblock_swStore,
 
-	.close = kblock_swClose,
+	.close = stm32_flash_close,
 
 	.error = stm32_flash_error,
 	.clearerr = stm32_flash_clearerror,
@@ -292,7 +305,7 @@ static const KBlockVTable flash_stm32_unbuffered_vt =
 	.readDirect = stm32_flash_readDirect,
 	.writeDirect = stm32_flash_writeDirect,
 
-	.close = kblock_swClose,
+	.close = stm32_flash_close,
 
 	.error = stm32_flash_error,
 	.clearerr = stm32_flash_clearerror,
@@ -306,13 +319,14 @@ static void common_init(Flash *fls)
 	DB(fls->blk.priv.type = KBT_FLASH);
 
 	fls->hw = &flash_stm32_hw;
+	fls->hw->status = 0;
 
 	fls->blk.blk_size = FLASH_PAGE_SIZE_BYTES;
 	fls->blk.blk_cnt = (F_SIZE * 1024) / FLASH_PAGE_SIZE_BYTES;
 
 	/* Unlock flash memory for the FPEC Access */
-	EMB_FLASH->KEYR = FLASH_KEY1;
-	EMB_FLASH->KEYR = FLASH_KEY2;
+	UNLOCK_FLASH();
+	LOG_INFO("flash device initialized and unlocked");
 
 #if CPU_CM3_STM32F2
 	/* set program parallelism size to 16 */

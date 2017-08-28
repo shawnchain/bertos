@@ -80,7 +80,7 @@ struct gpio_uart_info
 /* Table to retrieve GPIO pins configuration to work as UART pins */
 static const struct gpio_uart_info gpio_uart[SER_CNT] =
 {
-	/* UART1 */
+	/* UART1 PA9/10*/
 	{
 		.base = GPIOA_BASE,
 		.rx_pin = GPIO_USART1_RX_PIN,
@@ -88,7 +88,7 @@ static const struct gpio_uart_info gpio_uart[SER_CNT] =
 		.sysctl_gpio = RCC_APB2_GPIOA,
 		.sysctl_usart = RCC_APB2_USART1,
 	},
-	/* UART2 */
+	/* UART2 PA2/3*/
 	{
 		.base = GPIOA_BASE,
 		.rx_pin = GPIO_USART2_RX_PIN,
@@ -96,8 +96,8 @@ static const struct gpio_uart_info gpio_uart[SER_CNT] =
 		.sysctl_gpio = RCC_APB2_GPIOA,
 		.sysctl_usart = RCC_APB1_USART2,
 	},
-#if CPU_CM3_STM32F103RB || CPU_CM3_STM32F103RE
-	/* UART3 */
+	#if CPU_CM3_STM32F103RB || CPU_CM3_STM32F103RC || CPU_CM3_STM32F103RE || CPU_CM3_STM32F100RB || CPU_CM3_STM32F103C8
+	/* UART3 PB10/11*/
 	{
 		.base = GPIOB_BASE,
 		.rx_pin = GPIO_USART3_RX_PIN,
@@ -339,7 +339,7 @@ static void stm32_uartIRQDisable(int port)
 /* UART port instances */
 UART_PORT(1)
 UART_PORT(2)
-#if CPU_CM3_STM32F103RB || CPU_CM3_STM32F103RE
+#if CPU_CM3_STM32F103RB || CPU_CM3_STM32F103RC || CPU_CM3_STM32F103RE || CPU_CM3_STM32F100RB || CPU_CM3_STM32F103C8
 UART_PORT(3)
 #endif
 
@@ -369,7 +369,7 @@ static struct CM3Serial UARTDesc[SER_CNT] =
 		.base = USART2_BASE,
 		.irq = USART2_IRQHANDLER,
 	},
-#if CPU_CM3_STM32F103RB || CPU_CM3_STM32F103RE
+#if CPU_CM3_STM32F103RB || CPU_CM3_STM32F103RC || CPU_CM3_STM32F103RE || CPU_CM3_STM32F100RB || CPU_CM3_STM32F103C8
 	{
 		.hw = {
 			.table = &USART3_VT,

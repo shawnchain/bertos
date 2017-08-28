@@ -103,6 +103,13 @@ enum
 /*\}*/
 
 /**
+ * GPIO Port clock control
+ * \param base gpio register address
+ * \param val true to enable false to disable the clock
+ */
+ void stm32_gpioPortClock(struct stm32_gpio *base, bool enable);
+
+/**
  * Write a value to the specified pin(s)
  *
  * \param base gpio register address
@@ -126,6 +133,20 @@ INLINE void stm32_gpioPinWrite(struct stm32_gpio *base, uint16_t pins, bool val)
 INLINE uint16_t stm32_gpioPinRead(struct stm32_gpio *base, uint16_t pins)
 {
 	return (base->IDR & pins);
+}
+
+/**
+ * Write the port pins
+ */
+ INLINE void stm32_gpioPortWrite(struct stm32_gpio *base, uint16_t pins, uint16_t val){
+	base->ODR = (base->ODR & ~pins) | val;
+}
+
+/**
+ * Read whole port pins
+ */
+INLINE uint16_t stm32_gpioPortRead(struct stm32_gpio *base){
+	return (base->IDR);
 }
 
 /**

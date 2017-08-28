@@ -43,11 +43,10 @@
 #define SRAM_BB_BASE          (0x22000000)
 
 /* Peripheral and SRAM base address in the bit-band region */
+#define FLASH_BASE            (0x08000000) /*!< FLASH base address in the alias region */
 #define SRAM_BASE             (0x20000000)
 #define PERIPH_BASE           (0x40000000)
 
-/* Flash refisters base address */
-#define FLASH_BASE            (0x40022000)
 /* Flash Option Bytes base address */
 #define OB_BASE               (0x1FFFF800)
 /* Device ID register */
@@ -138,7 +137,7 @@
 
 #define DBGMCU_BASE          ((uint32_t)0xE0042000) ///< Debug MCU registers base address
 
-#else
+#else // STM32F2xx
 
 #define FLASH_BASE            ((uint32_t)0x08000000) /*!< FLASH base address in the alias region */
 #define SRAM_BASE             ((uint32_t)0x20000000) /*!< SRAM base address in the alias region */

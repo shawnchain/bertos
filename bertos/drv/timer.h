@@ -89,7 +89,7 @@ STATIC_ASSERT(sizeof(hptime_t) == SIZEOF_HPTIME_T);
 #if !defined(CONFIG_TIMER_EVENTS) || ((CONFIG_TIMER_EVENTS != 0) && CONFIG_TIMER_EVENTS != 1)
 	#error CONFIG_TIMER_EVENTS must be set to either 0 or 1 in cfg_timer.h
 #endif
-#if !defined(CONFIG_TIMER_UDELAY) || ((CONFIG_TIMER_UDELAY != 0) && CONFIG_TIMER_EVENTS != 1)
+#if !defined(CONFIG_TIMER_UDELAY) || ((CONFIG_TIMER_UDELAY != 0) && CONFIG_TIMER_UDELAY != 1)
 	#error CONFIG_TIMER_UDELAY must be set to either 0 or 1 in cfg_timer.h
 #endif
 #if defined(CONFIG_TIMER_DISABLE_UDELAY)

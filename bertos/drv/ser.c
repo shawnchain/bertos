@@ -137,7 +137,7 @@ static int ser_putchar(int c, struct Serial *port)
  *
  * \return EOF on error or timeout, \a c otherwise.
  */
-static int ser_getchar(struct Serial *port)
+int ser_getchar(struct Serial *port)
 {
 	if (fifo_isempty_locked(&port->rxfifo))
 	{
