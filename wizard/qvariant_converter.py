@@ -29,19 +29,30 @@
 # Copyright 2008 Develer S.r.l. (http://www.develer.com/)
 #
 #
-# Author: Lorenzo Berni <duplo@develer.com>
+# Author: Jack Bradach <jack@bradach.net
 #
 
 from PyQt4.QtCore import PYQT_VERSION_STR
+import re
 
-# Choose the right version of the qvariant_converter module. It's awful,
-# I know, but this is the only solution in order to mantain compatibility
-# with older PyQt4 version.
-if PYQT_VERSION_STR <= "4.4.3":
+# Extract our Major/Minor/Release version values from the version string.
+m = re.search('(?P<ver_major>\d+)\.(?P<ver_minor>\d+)(.(?P<ver_release>\d+))?', PYQT_VERSION_STR)
+ver_major   = int(m.group('ver_major'))
+ver_minor   = int(m.group('ver_minor'))
+
+# PYQT_VERSION_STR doesn't append a .0 to initial releases,
+# so we'll assume that if there were only two numbers in
+# the version string that this is X.Y.0.
+if (m.group('ver_release')):
+    ver_release = int(m.group('ver_release'))
+else:
+    ver_release = 0
+
+if ((ver_major <= 4) and (ver_minor <= 3) and (ver_release <= 3)):
     from qvariant_converter_old import *
-elif "4.4.3" < PYQT_VERSION_STR < "4.5":
+elif ((ver_major <= 4) and (ver_minor > 3) and (ver_minor < 5)):
     from qvariant_converter_4_4 import *
-elif "4.5" <= PYQT_VERSION_STR < "4.6":
+elif ((ver_major <= 4) and (ver_minor >= 5) and (ver_minor < 6)):
     from qvariant_converter_4_5 import *
 else:
     from qvariant_converter_4_6 import *

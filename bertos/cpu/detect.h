@@ -238,6 +238,14 @@
 		#define CPU_CM3_STM32F102C4 0
 	#endif
 
+	#if defined (__ARM_STM32F103C8__)
+		#define CPU_CM3_STM32       1
+		#define CPU_CM3_STM32F103C8 1
+		#define CPU_NAME            "STM32F103C8"
+	#else
+		#define CPU_CM3_STM32F103C8 0
+	#endif
+
 	#if defined (__ARM_STM32F103RB__)
 		#define CPU_CM3_STM32       1
 		#define CPU_CM3_STM32F103RB 1
@@ -332,7 +340,7 @@
 		#define CPU_CM3_SAM3        0
 	#elif defined (CPU_CM3_STM32)
 		#if CPU_CM3_STM32F100RB + CPU_CM3_STM32F100C4 + CPU_CM3_STM32F101C4 + CPU_CM3_STM32F103RB + CPU_CM3_STM32F103RE + \
-			CPU_CM3_STM32F102C4 + CPU_CM3_STM32F207IG + 0 != 1
+			CPU_CM3_STM32F102C4 + CPU_CM3_STM32F207IG + CPU_CM3_STM32F103C8 + 0 != 1
 			#error STM32 Cortex-M3 CPU configuration error
 		#endif
 		#define CPU_CM3_LM3S        0

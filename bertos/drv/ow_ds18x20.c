@@ -49,8 +49,6 @@ ow_ds18X20_start(uint8_t id[], bool parasitic)
 {
 	bool ret = false;
 
-	ow_reset();
-
 	if (!ow_busy())
 	{
 		// only send if bus is "idle" = high
@@ -76,8 +74,13 @@ bool
 ow_ds18x20_resolution(uint8_t id[], uint8_t bits)
 {
 	bool ret = true;
+	uint8_t family = id[0];
 
-	switch (id[0])
+	// if there is no ID (using SKIP code) then assume its a ds18b20 device
+	if (id == NULL)
+		family = DS1822_FAMILY_CODE;
+
+	switch (family)
 	{
 	case DS18S20_FAMILY_CODE:
 		// fixed at 9 bits
@@ -146,11 +149,16 @@ ow_ds18X20_read_temperature(uint8_t id[], int16_t * temperature)
 	bool ret;
 	uint32_t tmp, mask;
 	uint8_t shift = 0;
+	uint8_t family = id[0];
+
+	// if there is no ID (using SKIP code) then assume its a ds18b20 device
+	if (id == NULL)
+		family = DS1822_FAMILY_CODE;
 
 	if ((ret = read_scratchpad(id, sp)))
 	{
 		tmp = sp[0] | (sp[1] << 8);
-		switch (id[0])
+		switch (family)
 		{
 		case DS18B20_FAMILY_CODE:
 		case DS1822_FAMILY_CODE:

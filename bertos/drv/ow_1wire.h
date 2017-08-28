@@ -107,7 +107,7 @@ uint8_t ow_byte_wr_with_parasite_enable(uint8_t b);
 void ow_block(uint8_t * buff, uint8_t len);
 
 
-void ow_set_bus(volatile uint8_t * in, volatile uint8_t * out, volatile uint8_t * ddr, uint8_t pin);
+uint8_t ow_set_bus(volatile void * in, volatile void * out, volatile void * ddr, uint8_t pin);
 
 	/** \} */ //defgroup 1wire_api
 

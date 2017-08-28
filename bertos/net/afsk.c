@@ -115,92 +115,6 @@ INLINE uint8_t sin_sample(uint16_t idx)
 #define EDGE_FOUND(bitline)            BIT_DIFFER((bitline), (bitline) >> 1)
 
 /**
- * High-Level Data Link Control parsing function.
- * Parse bitstream in order to find characters.
- *
- * \param hdlc HDLC context.
- * \param bit  current bit to be parsed.
- * \param fifo FIFO buffer used to push characters.
- *
- * \return true if all is ok, false if the fifo is full.
- */
-static bool hdlc_parse(Hdlc *hdlc, bool bit, FIFOBuffer *fifo)
-{
-	bool ret = true;
-
-	hdlc->demod_bits <<= 1;
-	hdlc->demod_bits |= bit ? 1 : 0;
-
-	/* HDLC Flag */
-	if (hdlc->demod_bits == HDLC_FLAG)
-	{
-		if (!fifo_isfull(fifo))
-		{
-			fifo_push(fifo, HDLC_FLAG);
-			hdlc->rxstart = true;
-		}
-		else
-		{
-			ret = false;
-			hdlc->rxstart = false;
-		}
-
-		hdlc->currchar = 0;
-		hdlc->bit_idx = 0;
-		return ret;
-	}
-
-	/* Reset */
-	if ((hdlc->demod_bits & HDLC_RESET) == HDLC_RESET)
-	{
-		hdlc->rxstart = false;
-		return ret;
-	}
-
-	if (!hdlc->rxstart)
-		return ret;
-
-	/* Stuffed bit */
-	if ((hdlc->demod_bits & 0x3f) == 0x3e)
-		return ret;
-
-	if (hdlc->demod_bits & 0x01)
-		hdlc->currchar |= 0x80;
-
-	if (++hdlc->bit_idx >= 8)
-	{
-		if ((hdlc->currchar == HDLC_FLAG
-			|| hdlc->currchar == HDLC_RESET
-			|| hdlc->currchar == AX25_ESC))
-		{
-			if (!fifo_isfull(fifo))
-				fifo_push(fifo, AX25_ESC);
-			else
-			{
-				hdlc->rxstart = false;
-				ret = false;
-			}
-		}
-
-		if (!fifo_isfull(fifo))
-			fifo_push(fifo, hdlc->currchar);
-		else
-		{
-			hdlc->rxstart = false;
-			ret = false;
-		}
-
-		hdlc->currchar = 0;
-		hdlc->bit_idx = 0;
-	}
-	else
-		hdlc->currchar >>= 1;
-
-	return ret;
-}
-
-
-/**
  * ADC ISR callback.
  * This function has to be called by the ADC ISR when a sample of the configured
  * channel is available.
@@ -209,7 +123,9 @@ static bool hdlc_parse(Hdlc *hdlc, bool bit, FIFOBuffer *fifo)
  */
 void afsk_adc_isr(Afsk *af, int8_t curr_sample)
 {
-	AFSK_STROBE_ON();
+	uint8_t this_bit = 0;
+
+	AFSK_STROBE_ON ();
 
 	/*
 	 * Frequency discriminator and LP IIR filter.
@@ -282,9 +198,6 @@ void afsk_adc_isr(Afsk *af, int8_t curr_sample)
 	{
 		af->curr_phase %= PHASE_MAX;
 
-		/* Shift 1 position in the shift register of the found bits */
-		af->found_bits <<= 1;
-
 		/*
 		 * Determine bit value by reading the last 3 sampled bits.
 		 * If the number of ones is two or greater, the bit value is a 1,
@@ -293,19 +206,14 @@ void afsk_adc_isr(Afsk *af, int8_t curr_sample)
 		 */
 		STATIC_ASSERT(SAMPLEPERBIT == 8);
 		uint8_t bits = af->sampled_bits & 0x07;
-		if (bits == 0x07 // 111, 3 bits set to 1
-		 || bits == 0x06 // 110, 2 bits
-		 || bits == 0x05 // 101, 2 bits
-		 || bits == 0x03 // 011, 2 bits
-		)
-			af->found_bits |= 1;
+		if (bits == 0x07			  // 111, 3 bits set to 1
+			 || bits == 0x06		  // 110, 2 bits
+			 || bits == 0x05		  // 101, 2 bits
+			 || bits == 0x03		  // 011, 2 bits
+			)
+			this_bit = 1;
 
-		/*
-		 * NRZI coding: if 2 consecutive bits have the same value
-		 * a 1 is received, otherwise it's a 0.
-		 */
-		if (!hdlc_parse(&af->hdlc, !EDGE_FOUND(af->found_bits), &af->rx_fifo))
-			af->status |= AFSK_RXFIFO_OVERRUN;
+		af->status = hdlc_decode (&af->rx_hdlc, this_bit, &af->rx_fifo);
 	}
 
 
@@ -318,17 +226,11 @@ static void afsk_txStart(Afsk *af)
 	{
 		af->phase_inc = MARK_INC;
 		af->phase_acc = 0;
-		af->stuff_cnt = 0;
 		af->sending = true;
-		af->preamble_len = DIV_ROUND(CONFIG_AFSK_PREAMBLE_LEN * BITRATE, 8000);
-		AFSK_DAC_IRQ_START(af->dac_ch);
+		AFSK_DAC_IRQ_START (af->dac_ch);
 	}
-	ATOMIC(af->trailer_len  = DIV_ROUND(CONFIG_AFSK_TRAILER_LEN  * BITRATE, 8000));
 }
 
-#define BIT_STUFF_LEN 5
-
-#define SWITCH_TONE(inc)  (((inc) == MARK_INC) ? SPACE_INC : MARK_INC)
 
 /**
  * DAC ISR callback.
@@ -346,105 +248,24 @@ uint8_t afsk_dac_isr(Afsk *af)
 	/* Check if we are at a start of a sample cycle */
 	if (af->sample_count == 0)
 	{
-		if (af->tx_bit == 0)
-		{
-			/* We have just finished transimitting a char, get a new one. */
-			if (fifo_isempty(&af->tx_fifo) && af->trailer_len == 0)
-			{
-				AFSK_DAC_IRQ_STOP(af->dac_ch);
-				af->sending = false;
-				AFSK_STROBE_OFF();
-				return 0;
-			}
-			else
-			{
-				/*
-				 * If we have just finished sending an unstuffed byte,
-				 * reset bitstuff counter.
-				 */
-				if (!af->bit_stuff)
-					af->stuff_cnt = 0;
-
-				af->bit_stuff = true;
-
-				/*
-				 * Handle preamble and trailer
-				 */
-				if (af->preamble_len == 0)
-				{
-					if (fifo_isempty(&af->tx_fifo))
-					{
-						af->trailer_len--;
-						af->curr_out = HDLC_FLAG;
-					}
-					else
-						af->curr_out = fifo_pop(&af->tx_fifo);
-				}
-				else
-				{
-					af->preamble_len--;
-					af->curr_out = HDLC_FLAG;
-				}
-
-				/* Handle char escape */
-				if (af->curr_out == AX25_ESC)
-				{
-					if (fifo_isempty(&af->tx_fifo))
-					{
-						AFSK_DAC_IRQ_STOP(af->dac_ch);
-						af->sending = false;
-						AFSK_STROBE_OFF();
-						return 0;
-					}
-					else
-						af->curr_out = fifo_pop(&af->tx_fifo);
-				}
-				else if (af->curr_out == HDLC_FLAG || af->curr_out == HDLC_RESET)
-					/* If these chars are not escaped disable bit stuffing */
-					af->bit_stuff = false;
-			}
-			/* Start with LSB mask */
-			af->tx_bit = 0x01;
-		}
-
-		/* check for bit stuffing */
-		if (af->bit_stuff && af->stuff_cnt >= BIT_STUFF_LEN)
-		{
-			/* If there are more than 5 ones in a row insert a 0 */
-			af->stuff_cnt = 0;
-			/* switch tone */
-			af->phase_inc = SWITCH_TONE(af->phase_inc);
-		}
-		else
-		{
-			/*
-			 * NRZI: if we want to transmit a 1 the modulated frequency will stay
-			 * unchanged; with a 0, there will be a change in the tone.
-			 */
-			if (af->curr_out & af->tx_bit)
-			{
-				/*
-				 * Transmit a 1:
-				 * - Stay on the previous tone
-				 * - Increase bit stuff counter
-				 */
-				af->stuff_cnt++;
-			}
-			else
-			{
-				/*
-				 * Transmit a 0:
-				 * - Reset bit stuff counter
-				 * - Switch tone
-				 */
-				af->stuff_cnt = 0;
-				af->phase_inc = SWITCH_TONE(af->phase_inc);
-			}
-
-			/* Go to the next bit */
-			af->tx_bit <<= 1;
-		}
+		/* We have just finished transmitting a bit, get a new one. */
+		/* note that hdlc module does all the NRZI as well as bit stuffing etc */
+		af->curr_out = hdlc_encode (&af->tx_hdlc, &af->tx_fifo);
 		af->sample_count = DAC_SAMPLEPERBIT;
+		switch (af->curr_out)
+		{
+		case -1:
+			AFSK_DAC_IRQ_STOP (af->dac_ch);
+			af->sending = false;
+			AFSK_STROBE_OFF ();
+			return 0;
+		case 1:
+			af->phase_inc = MARK_INC;
+			break;
+		case 0:
+			af->phase_inc = SPACE_INC;
+			break;
+		}
 	}
 
 	/* Get new sample and put it out on the DAC */
@@ -521,10 +342,40 @@ static int afsk_error(KFile *fd)
 	return err;
 }
 
-static void afsk_clearerr(KFile *fd)
+static void afsk_clearerr (KFile * fd)
 {
-	Afsk *af = AFSK_CAST(fd);
-	ATOMIC(af->status = 0);
+	Afsk *af = AFSK_CAST (fd);
+	ATOMIC (af->status = 0);
+}
+
+/**
+ * Sets head timings by defining the number of flags to output
+ * Has to be done here as this is the only module that interfaces directly to hdlc!!
+ *
+ * \param fd caste afsk context.
+ * \param c value
+ *
+ */
+void afsk_head (KFile * fd, int c)
+{
+	Afsk *af = AFSK_CAST (fd);
+
+	hdlc_head (&af->tx_hdlc, c, BITRATE);
+}
+
+/**
+ * Sets tail timings by defining the number of flags to output
+ * Has to be done here as this is the only module that interfaces directly to hdlc!!
+ *
+ * \param fd caste afsk context.
+ * \param c value
+ *
+ */
+void afsk_tail (KFile * fd, int c)
+{
+	Afsk *af = AFSK_CAST (fd);
+
+	hdlc_tail (&af->tx_hdlc, c, BITRATE);
 }
 
 
@@ -557,7 +408,12 @@ void afsk_init(Afsk *af, int adc_ch, int dac_ch)
 	AFSK_STROBE_INIT();
 	LOG_INFO("MARK_INC %d, SPACE_INC %d\n", MARK_INC, SPACE_INC);
 
-	DB(af->fd._type = KFT_AFSK);
+	hdlc_init (&af->rx_hdlc);
+	hdlc_init (&af->tx_hdlc);
+	// set initial defaults for timings
+	hdlc_head (&af->tx_hdlc, CONFIG_AFSK_PREAMBLE_LEN, BITRATE);
+	hdlc_tail (&af->tx_hdlc, CONFIG_AFSK_TRAILER_LEN, BITRATE);
+	DB (af->fd._type = KFT_AFSK);
 	af->fd.write = afsk_write;
 	af->fd.read = afsk_read;
 	af->fd.flush = afsk_flush;

@@ -221,7 +221,7 @@
 #if CPU_CM3_STM32F1
 #define CR2_FREQ_RESET          ((uint16_t)0xFFC0)
 
-#define CR2_FREQ_36MHZ          ((uint16_t)0x100100)
+#define CR2_FREQ_36MHZ          ((uint16_t)0x0024)
 #else
 #define CR2_FREQ_RESET          ((uint16_t)0x001F)
 

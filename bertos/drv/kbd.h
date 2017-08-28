@@ -67,6 +67,7 @@
  * \{
  */
 #define KBD_POLL_SOFTINT  1
+#define KBD_POLL_SYNC_TIMER 2
 /* \} */
 
 /**

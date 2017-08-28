@@ -26,8 +26,12 @@
  */
 
 #include "ow_ds2438.h"
-
+#include "cfg/cfg_1wire.h"
 #include "drv/ow_1wire.h"
+
+#define LOG_LEVEL   OW_LOG_LEVEL
+#define LOG_FORMAT  OW_LOG_FORMAT
+
 #include <cfg/log.h>
 
 #include <algo/crc8.h>
@@ -176,7 +180,7 @@ ow_ds2438_init(uint8_t id[], CTX2438_t * context, float shunt, uint16_t charge)
 		return false;
 
 	context->lastICA = ICAREF;
-	context->fullICA = (uint16_t) ((float) (charge) * (float) (2048.0 * shunt));  // beware of rounding errors here!!
+	context->fullICA = charge * 2048.0 * shunt * 100;
 
 	return true;
 
@@ -227,16 +231,15 @@ int
 ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 {
 	uint8_t page_data[10];
-	int16_t t;
 	int32_t lt;
 	uint8_t ICA;
 
 	if (!ReadPage(id, 0, page_data))
 		return false;
 
-	t = (page_data[2] << 8) | page_data[1];
+	lt = (page_data[2] << 8) | page_data[1];
 	// Scale up by 100 to keep the following arithmetic as integer. Note we have to go to 32 bits here!
-	lt = t * 100L;
+	lt *= 100L;
 	// now for a bit of magic!
 	// There are 8 bits to 1 deg but the 38 has 12 bits but the 3 LSBs are not used 
 	// so shift by 8 to scale the value and get the resolution to the correct place
@@ -246,13 +249,19 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 	context->Volts = ((page_data[4] << 8) | page_data[3]);
 
 	// This is the voltage across the shunt resistor in units of 0.2441mV
-	t = page_data[6] << 8 | page_data[5];
+	lt = page_data[6] << 8 | page_data[5];
 	// We get passed the shunt resistor value as we're the only ones who know what the algorithm is
 	// for calculating amps from the measured value.
-	context->Amps = (int16_t) ((float) t / (4096 * context->shunt) * 100);
+	context->Amps = lt * 100 / (4096 * context->shunt);
 
 	if (!ReadPage(id, 1, page_data))
 		return false;
+
+	// elapsed time meter register. 
+	context->etm =                     page_data[3];
+	context->etm = context->etm << 8 | page_data[2];
+	context->etm = context->etm << 8 | page_data[1];
+	context->etm = context->etm << 8 | page_data[0];
 
 	ICA = page_data[4];
 
@@ -262,15 +271,21 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 	context->DCA = ((page_data[7] << 8) | page_data[6]) / (64.0 * context->shunt);
 
 	// a miss-read would likely return more than a change of 1 so only allow 2 or less
+	// Note that the internal ICA value is scaled up by 100 so we don't loose accuracy on small adjustments due to charge inefficiency
 	if (abs(ICA - context->lastICA) <= 2)
 	{
-		context->fullICA += ICA - context->lastICA;
+		context->fullICA += (ICA - context->lastICA) * 100;
 		context->lastICA = ICA;
 		if ((ICA <= ICAREF - ICABAND) || (ICA >= ICAREF + ICABAND))
 		{
-			// if discharging adjust ICA down by the efficiency of the charge cycle
-			if (ICA <= ICAREF - ICABAND)
-				context->fullICA -= (ICABAND * (1 - ((float) context->DCA / (float) context->CCA)));
+			// if discharging and charge/discharge ratio < 1 then adjust ICA down by the efficiency of the charge cycle
+			// this extra check is required because on a new system the recorded values of DCA and CCA are of the same magnitude as a normal discharge cycle
+			if ((ICA <= ICAREF - ICABAND) && (context->DCA < context->CCA))
+			{
+				lt = context->fullICA;
+				context->fullICA -= ICABAND * 100 * (1.0 - ((float) context->DCA / context->CCA));
+				LOG_INFO("Adjusting local ICA (%ld), to %lu\r\n", lt, context->fullICA);
+			}
 
 			context->lastICA = ICAREF;
 			ow_ds2438_setICA(id, ICAREF);
@@ -281,7 +296,7 @@ ow_ds2438_readall(uint8_t id[], CTX2438_t * context)
 		LOG_INFO("Bad ICA read of %u, expecting closer to %u\r\n", ICA, context->lastICA);
 	}
 
-	context->Charge = (uint16_t) ((float) (context->fullICA) / (float) (2048.0 * context->shunt));  // beware of rounding errors here!!
+	context->Charge = (context->fullICA /  (2048.0 * context->shunt * 100)) + 0.5;
 
 	return true;
 }
@@ -347,7 +362,7 @@ ow_ds2438_calibrate(uint8_t id[], CTX2438_t * context, int16_t offset)
 		return false;
 
 	// offset comes to us in Amps * 100. Convert to 0.2441mV units and account for the 3 bit shift in the register
-	offset = offset * (float) (4096.0 * context->shunt * 8.0 / 100.0);
+	offset = offset * (float) (4096.0 * context->shunt * 8.0 / 100.0) + 0.5;
 
 	regval = (0 - regval) << 3;
 	regval += offset;
@@ -380,6 +395,37 @@ ow_ds2438_setICA(uint8_t id[], uint8_t value)
 
 	// slip in the new value
 	page_data[4] = value;
+
+	// Write the page back
+	if (!WritePage(id, 1, page_data, 8))
+		return false;
+
+	return true;
+
+}
+
+
+/**
+ * Sets the ETM register
+ * \param id       the serial number for the part that the read is to be done on.
+ * \param value    what to write to the ETM register
+ *
+ * \return true if all OK else return false
+ */
+int
+ow_ds2438_setETM(uint8_t id[], uint32_t value)
+{
+	uint8_t page_data[10];
+
+	// Get page 1
+	if (!ReadPage(id, 1, page_data))
+		return false;
+
+	// slip in the new value
+	page_data[0] = value & 0xff;
+	page_data[1] = value >> 8;
+	page_data[2] = value >> 16;
+	page_data[3] = value >> 24;
 
 	// Write the page back
 	if (!WritePage(id, 1, page_data, 8))

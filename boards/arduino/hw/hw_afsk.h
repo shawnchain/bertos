@@ -40,6 +40,7 @@
 #define HW_AFSK_H
 
 #include "cfg/cfg_arch.h"
+#include <cfg/cfg_afsk.h>
 
 #include <avr/io.h>
 
@@ -93,14 +94,26 @@ void hw_afsk_dacInit(int ch, struct Afsk *_ctx);
  * \param ctx AFSK context (\see Afsk).  This parameter must be saved and
  *             passed back to afsk_dac_isr() for every convertion.
  */
+#if CONFIG_AFSK_PWM_TX == 1
+// If using a PWM output then use mode 3 fast (asymmetric) mode running as fast as possible
+// on port D bit 3 (Arduino D3) thus keeping PTT on the original port B bit 3 (Arduino D11).
+#define AFSK_DAC_INIT(ch, ctx)\
+	do { \
+		(void)ch, (void)ctx;\
+			TCCR2A = BV(COM2B1) | BV(COM2B0) | BV(WGM21) | BV(WGM20);\
+			TCCR2B = BV(CS20);\
+			DDRB |= BV(3);\
+			DDRD |= BV(3);\
+		} while (0)
+#else
 #define AFSK_DAC_INIT(ch, ctx)   do { (void)ch, (void)ctx; DDRD |= 0xF0; DDRB |= BV(3); } while (0)
+#endif
 
 /**
  * Start DAC convertions on channel \a ch.
  * \param ch DAC channel.
  */
 #define AFSK_DAC_IRQ_START(ch)   do { (void)ch; extern bool hw_afsk_dac_isr; PORTB |= BV(3); hw_afsk_dac_isr = true; } while (0)
-
 /**
  * Stop DAC convertions on channel \a ch.
  * \param ch DAC channel.

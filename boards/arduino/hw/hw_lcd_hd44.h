@@ -43,26 +43,41 @@
 
 #include "cfg/cfg_lcd_hd44.h"  /* CONFIG_LCD_4BIT */
 
+#include "cfg/macros.h"   /* BV() */
 #include <cpu/types.h>
 #include <cpu/irq.h>
 
-#warning TODO:This is an example implementation, you must implement it!
+#include <avr/io.h>
+
 
 /**
  * \name LCD I/O pins/ports
+ * In this case the data lines are put onto bits 4-7 of port B
  * @{
  */
-#define LCD_RS    /* Implement me! */
-#define LCD_RW    /* Implement me! */
-#define LCD_E     /* Implement me! */
+#define LCD_RW    PB0
+#define LCD_RS    PB1
+#define LCD_E     PD2
+#define LCD_BL    PB4         /* Backlight! */
 #define LCD_DB0   /* Implement me! */
 #define LCD_DB1   /* Implement me! */
 #define LCD_DB2   /* Implement me! */
 #define LCD_DB3   /* Implement me! */
-#define LCD_DB4   /* Implement me! */
-#define LCD_DB5   /* Implement me! */
-#define LCD_DB6   /* Implement me! */
-#define LCD_DB7   /* Implement me! */
+#define LCD_DB4   PD4
+#define LCD_DB5   PD5
+#define LCD_DB6   PD6
+#define LCD_DB7   PD7
+#define LCD_PORT        PORTD
+#define LCD_PORT_IN     PIND
+#define LCD_PORT_DDR    DDRD
+#define LCD_RW_PORT     PORTB
+#define LCD_RW_PORT_DDR DDRB
+#define LCD_RS_PORT     PORTB
+#define LCD_RS_PORT_DDR DDRB
+#define LCD_E_PORT      PORTD
+#define LCD_E_PORT_DDR  DDRD
+#define LCD_BL_PORT     PORTB
+#define LCD_BL_PORT_DDR DDRB
 /*@}*/
 
 /**
@@ -83,24 +98,35 @@
  * \name LCD bus control macros
  * @{
  */
-#define LCD_CLR_RS      /* Implement me! */
-#define LCD_SET_RS      /* Implement me! */
-#define LCD_CLR_RD      /* Implement me! */
-#define LCD_SET_RD      /* Implement me! */
-#define LCD_CLR_E       /* Implement me! */
-#define LCD_SET_E       /* Implement me! */
+#define LCD_CLR_RS      LCD_RS_PORT  &= ~BV(LCD_RS);
+#define LCD_SET_RS      LCD_RS_PORT  |=  BV(LCD_RS);
+#define LCD_CLR_RD      LCD_RW_PORT  &= ~BV(LCD_RW);
+#define LCD_SET_RD      LCD_RW_PORT  |=  BV(LCD_RW);
+#define LCD_CLR_E       LCD_E_PORT  &= ~BV(LCD_E);
+#define LCD_SET_E       LCD_E_PORT  |=  BV(LCD_E);
 
-/* Enter command mode */
-#define LCD_SET_COMMAND() /* Implement me! */
-
-/* Enter data mode */
-#define LCD_SET_DATA() /* Implement me! */
+#define LCD_CLR_BL      LCD_BL_PORT &= ~BV(LCD_BL);
+#define LCD_SET_BL      LCD_BL_PORT |= BV(LCD_BL);
 
 #if CONFIG_LCD_4BIT
-	#define LCD_WRITE_H(x)  ((void)x)/* Implement me! */
-	#define LCD_WRITE_L(x)  ((void)x)/* Implement me! */
-	#define LCD_READ_H      ( 0 /* Implement me! */ )
-	#define LCD_READ_L      ( 0 /* Implement me! */ )
+	#define LCD_WRITE_H(x) \
+	do { \
+			uint8_t dataBits = LCD_PORT & 0xF0; \
+			LCD_PORT = dataBits | ((x >> LCD_SHIFT)&0x0F); \
+		} while (0)
+
+	#define LCD_WRITE_L(x) \
+	do { \
+			uint8_t dataBits = LCD_PORT & 0xF0; \
+			LCD_PORT = dataBits | ((x)&0x0F); \
+		} while (0)
+
+	#define LCD_READ_H \
+   		((LCD_PORT_IN << LCD_SHIFT) & 0xf0)
+
+	#define LCD_READ_L \
+   		(LCD_PORT_IN & 0x0f)
+
 #else
 	#define LCD_WRITE(x)    ((void)x)/* Implement me! */
 	#define LCD_READ        (0 /* Implement me! */ )
@@ -108,27 +134,27 @@
 /*@}*/
 
 /** Set data bus direction to output (write to display) */
-#define LCD_DB_OUT          /* Implement me! */
+#define LCD_DB_OUT \
+	do { \
+			LCD_PORT_DDR |= 0x0F; \
+	} while (0)
 
 /** Set data bus direction to input (read from display) */
-#define LCD_DB_IN           /* Implement me! */
+#define LCD_DB_IN \
+	do { \
+			LCD_PORT_DDR &= 0xF0; \
+	} while (0)
+
 /** Delay for write (Enable pulse width, 220ns) */
 #define LCD_DELAY_WRITE \
 	do { \
-		NOP; \
-		NOP; \
-		NOP; \
-		NOP; \
-		NOP; \
+			timer_udelay(2); \
 	} while (0)
 
 /** Delay for read (Data ouput delay time, 120ns) */
 #define LCD_DELAY_READ \
 	do { \
-		NOP; \
-		NOP; \
-		NOP; \
-		NOP; \
+			timer_udelay(1); \
 	} while (0)
 
 
@@ -143,6 +169,14 @@ INLINE void lcd_hd44_hw_bus_init(void)
 	 * to init a lcd device.
 	 *
 	 */
+	LCD_RS_PORT_DDR |= BV(LCD_RS);
+	LCD_RW_PORT_DDR |= BV(LCD_RW);
+	LCD_E_PORT_DDR |= BV(LCD_E);
+	LCD_BL_PORT_DDR |= BV(LCD_BL);
+
+	LCD_SET_RS;
+	LCD_CLR_RD;
+	LCD_CLR_E;
 
 	/*
 	 * Data bus is in output state most of the time:
