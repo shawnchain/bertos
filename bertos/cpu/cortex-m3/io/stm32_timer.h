@@ -39,8 +39,49 @@
 #include <cpu/detect.h>
 
 #if CPU_CM3_STM32F1
-	#warning __FILTER_NEXT_WARNING__
-	#warning Not supported
+typedef struct stm32_tim_half
+{
+	reg16_t VAL;
+	uint16_t RESERVED;
+} stm32_tim_half;
+
+struct stm32_tim
+{
+	reg16_t CR1;          /*!< TIM control register 1,              Address offset: 0x00 */
+	uint16_t RESERVED0;   /*!< Reserved, 0x02                                            */
+	reg16_t CR2;          /*!< TIM control register 2,              Address offset: 0x04 */
+	uint16_t RESERVED1;   /*!< Reserved, 0x06                                            */
+	reg16_t SMCR;         /*!< TIM slave mode control register,     Address offset: 0x08 */
+	uint16_t RESERVED2;   /*!< Reserved, 0x0A                                            */
+	reg16_t DIER;         /*!< TIM DMA/interrupt enable register,   Address offset: 0x0C */
+	uint16_t RESERVED3;   /*!< Reserved, 0x0E                                            */
+	reg16_t SR;           /*!< TIM status register,                 Address offset: 0x10 */
+	uint16_t RESERVED4;   /*!< Reserved, 0x12                                            */
+	reg16_t EGR;          /*!< TIM event generation register,       Address offset: 0x14 */
+	uint16_t RESERVED5;   /*!< Reserved, 0x16                                            */
+	/*!<                       TIM capture/compare mode registers,  Address offset: 0x18 */
+	stm32_tim_half CCMR[2];
+	reg16_t CCER;         /*!< TIM capture/compare enable register, Address offset: 0x20 */
+	uint16_t RESERVED8;   /*!< Reserved, 0x22                                            */
+	reg16_t CNT;          /*!< TIM counter register,                Address offset: 0x24 */
+	uint16_t RESERVED_26;   /*!< Reserved, 0x26                                            */
+	reg16_t PSC;          /*!< TIM prescaler,                       Address offset: 0x28 */
+	uint16_t RESERVED9;   /*!< Reserved, 0x2A                                            */
+	reg16_t ARR;          /*!< TIM auto-reload register,            Address offset: 0x2C */
+	uint16_t RESERVED_2e;   /*!< Reserved, 0x2E                                            */
+	reg16_t RCR;          /*!< TIM repetition counter register,     Address offset: 0x30 */
+	uint16_t RESERVED10;  /*!< Reserved, 0x32                                            */
+	/*!<                       TIM capture/compare registers,       Address offset: 0x34 */
+	stm32_tim_half CCR[4];
+	reg16_t BDTR;         /*!< TIM break and dead-time register,    Address offset: 0x44 */
+	uint16_t RESERVED11;  /*!< Reserved, 0x46                                            */
+	reg16_t DCR;          /*!< TIM DMA control register,            Address offset: 0x48 */
+	uint16_t RESERVED12;  /*!< Reserved, 0x4A                                            */
+	reg16_t DMAR;         /*!< TIM DMA address for full transfer,   Address offset: 0x4C */
+	uint16_t RESERVED13;  /*!< Reserved, 0x4E                                            */
+};
+
+
 #elif CPU_CM3_STM32F2
 
 typedef struct stm32_tim_half
@@ -84,21 +125,29 @@ struct stm32_tim
 	reg16_t OR;           /*!< TIM option register,                 Address offset: 0x50 */
 	uint16_t RESERVED14;  /*!< Reserved, 0x52                                            */
 };
+#else
+#error Unknown CPU
+#endif 
 
-#define TIM1  ((struct stm32_tim *)TIM1_BASE)
+
+// TIM definitions start
 #define TIM2  ((struct stm32_tim *)TIM2_BASE)
 #define TIM3  ((struct stm32_tim *)TIM3_BASE)
 #define TIM4  ((struct stm32_tim *)TIM4_BASE)
 #define TIM5  ((struct stm32_tim *)TIM5_BASE)
 #define TIM6  ((struct stm32_tim *)TIM6_BASE)
 #define TIM7  ((struct stm32_tim *)TIM7_BASE)
+#define TIM12 ((struct stm32_tim *)TIM12_BASE)
+#define TIM13 ((struct stm32_tim *)TIM13_BASE)
+#define TIM14 ((struct stm32_tim *)TIM14_BASE)
+
+#if CPU_CM3_STM32F2  // Additional TIMERs for F2
+#define TIM1  ((struct stm32_tim *)TIM1_BASE)
 #define TIM8  ((struct stm32_tim *)TIM8_BASE)
 #define TIM9  ((struct stm32_tim *)TIM9_BASE)
 #define TIM10 ((struct stm32_tim *)TIM10_BASE)
 #define TIM11 ((struct stm32_tim *)TIM11_BASE)
-#define TIM12 ((struct stm32_tim *)TIM12_BASE)
-#define TIM13 ((struct stm32_tim *)TIM13_BASE)
-#define TIM14 ((struct stm32_tim *)TIM14_BASE)
+#endif
 
 /* Bit definition for TIM_CR1 register */
 #define TIM_CR1_CEN                         ((uint16_t)0x0001)            /*!<Counter enable */
@@ -204,6 +253,7 @@ struct stm32_tim
 #define TIM_EGR_BG                          ((uint8_t)0x80)               /*!<Break Generation */
 
 /* Bit definition for TIM_CCMR1 register */
+#if CPU_CM3_STM32F2
 #define TIM_CCMR1_CC1S_OUT                  ((uint16_t)0 << 0)
 #define TIM_CCMR1_CC1S_TI1                  ((uint16_t)1 << 0)
 #define TIM_CCMR1_CC1S_TI2                  ((uint16_t)2 << 0)
@@ -213,6 +263,7 @@ struct stm32_tim
 #define TIM_CCMR1_CC2S_TI1                  ((uint16_t)1 << 8)
 #define TIM_CCMR1_CC2S_TI2                  ((uint16_t)2 << 8)
 #define TIM_CCMR1_CC2S_TRC                  ((uint16_t)3 << 8)
+#endif
 
 #define TIM_CCMR1_CC1S                      ((uint16_t)0x0003)            /*!<CC1S[1:0] bits (Capture/Compare 1 Selection) */
 #define TIM_CCMR1_CC1S_0                    ((uint16_t)0x0001)            /*!<Bit 0 */
@@ -263,6 +314,7 @@ struct stm32_tim
 #define TIM_CCMR1_IC2F_3                    ((uint16_t)0x8000)            /*!<Bit 3 */
 
 /* Bit definition for TIM_CCMR2 register */
+#if CPU_CM3_STM32F2
 #define TIM_CCMR2_CC3S_OUT                  ((uint16_t)0 << 0)
 #define TIM_CCMR2_CC3S_TI3                  ((uint16_t)1 << 0)
 #define TIM_CCMR2_CC3S_TI4                  ((uint16_t)2 << 0)
@@ -290,6 +342,7 @@ struct stm32_tim
 #define TIM_CCMR_OCM_PWM2                   ((uint16_t)7 << 4)
 
 #define TIM_CCMR_OCPE                       ((uint16_t)0x0008)            /*!<Output Compare Preload enable */
+#endif // CPU_STM32_F2
 
 #define TIM_CCMR2_CC3S                      ((uint16_t)0x0003)            /*!<CC3S[1:0] bits (Capture/Compare 3 Selection) */
 #define TIM_CCMR2_CC3S_0                    ((uint16_t)0x0001)            /*!<Bit 0 */
@@ -426,6 +479,7 @@ struct stm32_tim
 /* Bit definition for TIM_DMAR register */
 #define TIM_DMAR_DMAB                       ((uint16_t)0xFFFF)            /*!<DMA register for burst accesses */
 
+#if CPU_CM3_STM32F2
 /* Bit definition for TIM_OR register */
 #define TIM_OR_TI4_RMP                       ((uint16_t)0x00C0)            /*!<TI4_RMP[1:0] bits (TIM5 Input 4 remap) */
 #define TIM_OR_TI4_RMP_0                     ((uint16_t)0x0040)            /*!<Bit 0 */
@@ -433,17 +487,12 @@ struct stm32_tim
 #define TIM_OR_ITR1_RMP                      ((uint16_t)0x0C00)            /*!<ITR1_RMP[1:0] bits (TIM2 Internal trigger 1 remap) */
 #define TIM_OR_ITR1_RMP_0                    ((uint16_t)0x0400)            /*!<Bit 0 */
 #define TIM_OR_ITR1_RMP_1                    ((uint16_t)0x0800)            /*!<Bit 1 */
+#endif // CPU_CM3_STM32F2
 
 /* helpers to avoid hardcoding counter number */
 #define TIM_CCER_VAL(counter, bits) ((bits) << ((counter) * 4))
 
 #define TIM_CCMR_IDX(counter)       ((counter) > 1 ? 1 : 0)
 #define TIM_CCMR_VAL(counter, bits) ((counter) & 1 ? (bits) << 8 : (bits) << 0)
-
-#elif CPU_CM3_STM32F1
-#warning Could probably use most of the code above (the only difference should be the 16 bit timer counter)
-#else
-#error Unknown CPU
-#endif
 
 #endif /* STM32_TIMER_H */

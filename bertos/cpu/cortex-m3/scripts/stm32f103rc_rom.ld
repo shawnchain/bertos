@@ -48,7 +48,7 @@ STACK_SIZE = 0x1000;
 MEMORY
 {
 	rom(rx) : org = 0x08000000, len = 256k
-	ram(rwx) : org = 0x20000000, len = 48k
+	ram(rwx) : org = 0x20000000, len = 64k
 }
 
 INCLUDE "bertos/cpu/cortex-m3/scripts/cortex-m3_rom.ld"

@@ -41,7 +41,6 @@
 #if CPU_CM3_STM32F1 || CPU_CM3_STM32F2
 
 #include "stm32_rcc.h"
-#include "stm32_syscfg.h"
 
 struct stm32_exti
 {
@@ -97,6 +96,7 @@ struct stm32_exti
 	#warning __FILTER_NEXT_WARNING__
 	#warning Not supported: Use AFIO instead of SYSCFG
 #elif CPU_CM3_STM32F2
+#include "stm32_syscfg.h"
 /* enable GPIOx pin as input source for EXTIx interrupt */
 INLINE void stm32_extiGpioConfig(uint8_t gpio, uint8_t pin)
 {

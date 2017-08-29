@@ -39,8 +39,40 @@
 #include <cpu/detect.h>
 
 #if CPU_CM3_STM32F1
-	#warning __FILTER_NEXT_WARNING__
-	#warning Not supported
+
+#if CPU_CM3_SMT32F1
+#ifndef __F1_SPI_WARN__
+#warning stm32_dma.h is not tested yet
+#define __F1_SPI_WARN__
+#endif
+#endif
+
+struct stm32_dmastream
+{
+	reg32_t CR;     /*!< DMA stream x configuration register      */
+	reg32_t NDTR;   /*!< DMA stream x number of data register     */
+	reg32_t PAR;    /*!< DMA stream x peripheral address register */
+	reg32_t MAR;    /*!< DMA stream x memory address register   */
+	reg32_t RESERVED0;
+};
+
+struct stm32_dma1
+{
+	reg32_t ISR;   /*!< DMA interrupt status register,      Address offset: 0x00 */
+	reg32_t IFCR;  /*!< DMA interrupt flag clear register,  Address offset: 0x08 */
+	struct stm32_dmastream STR[7];
+};
+
+struct stm32_dma2
+{
+	reg32_t ISR;   /*!< DMA interrupt status register,      Address offset: 0x00 */
+	reg32_t IFCR;  /*!< DMA interrupt flag clear register,  Address offset: 0x08 */
+	struct stm32_dmastream STR[5];
+};
+
+#define DMA1 ((struct stm32_dma1 *) DMA1_BASE)
+#define DMA2 ((struct stm32_dma2 *) DMA2_BASE)
+
 #elif CPU_CM3_STM32F2
 
 struct stm32_dmastream
